@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#060a10">
+<title>BYD Voice Bridge</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;600;700&family=Noto+Sans+SC:wght@400;700&family=Share+Tech+Mono&family=Noto+Sans+Arabic:wght@400;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+:root{
+  --c:#00e5ff;--c2:#0097a7;--cg:rgba(0,229,255,0.12);
+  --bg:#060a10;--bg2:#0a1220;--bg3:#0e1a28;
+  --t:#ddeeff;--m:#4a7a99;--b:rgba(0,229,255,0.18);
+  --ok:#00ff99;--err:#ff3355;--warn:#ffcc00;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'Rajdhani',sans-serif;color:var(--t);display:flex;flex-direction:column;font-size:14px;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.025) 2px,rgba(0,0,0,0.025) 4px);pointer-events:none;z-index:9999;}
+
+/* PERMISSION OVERLAY */
+#permOverlay{
+  position:fixed;inset:0;background:rgba(6,10,16,0.97);z-index:10000;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  text-align:center;padding:30px;
+}
+#permOverlay h2{font-size:22px;color:var(--c);letter-spacing:3px;font-family:'Share Tech Mono',monospace;}
+#permOverlay p{color:var(--m);font-size:14px;line-height:1.7;max-width:400px;}
+#permBtn{
+  background:var(--cg);border:1.5px solid var(--c);color:var(--c);
+  font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:2px;
+  padding:14px 32px;border-radius:6px;cursor:pointer;
+}
+#permBtn:active{opacity:0.7;}
+
+/* TOP BAR */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 16px;border-bottom:1px solid var(--b);
+  background:var(--bg2);flex-shrink:0;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-icon{width:32px;height:32px;border:1.5px solid var(--c);border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--cg);}
+.brand-icon svg{width:18px;height:18px;}
+.brand-text{font-size:16px;font-weight:700;letter-spacing:3px;color:var(--c);}
+.brand-sub{font-size:9px;letter-spacing:2px;color:var(--m);font-family:'Share Tech Mono',monospace;}
+.topbar-right{display:flex;align-items:center;gap:6px;}
+.pill{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:2px 7px;border-radius:3px;border:1px solid;}
+.pill.on{border-color:var(--ok);color:var(--ok);}
+.pill.off{border-color:var(--m);color:var(--m);}
+.pill.pwa{border-color:var(--c);color:var(--c);}
+.pill.mic-ok{border-color:var(--ok);color:var(--ok);}
+.pill.mic-no{border-color:var(--err);color:var(--err);}
+
+/* LANG TOGGLE */
+.lang-bar{display:flex;border-bottom:1px solid var(--b);background:var(--bg2);flex-shrink:0;}
+.lang-btn{
+  flex:1;padding:7px;border:none;background:transparent;color:var(--m);
+  cursor:pointer;font-size:12px;letter-spacing:1px;font-family:'Rajdhani',sans-serif;font-weight:600;
+  transition:all .2s;border-bottom:2px solid transparent;
+}
+.lang-btn.on{color:var(--c);border-bottom-color:var(--c);background:var(--cg);}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* LEFT PANEL */
+.panel-left{flex:1.15;display:flex;flex-direction:column;padding:10px 14px;border-right:1px solid var(--b);overflow:hidden;}
+
+/* HEX MIC */
+.mic-zone{display:flex;flex-direction:column;align-items:center;padding:8px 0 6px;flex-shrink:0;}
+.mic-outer{position:relative;width:100px;height:100px;display:flex;align-items:center;justify-content:center;}
+.ring{position:absolute;border-radius:50%;border:1.5px solid transparent;opacity:0;transition:opacity .3s;}
+.ring.r1{inset:0;border-top-color:var(--c);border-right-color:var(--c);animation:sp1 2s linear infinite;}
+.ring.r2{inset:11%;border-left-color:var(--c2);border-bottom-color:var(--c2);animation:sp2 1.4s linear infinite reverse;}
+.mic-outer.active .ring{opacity:1;}
+@keyframes sp1{to{transform:rotate(360deg);}}
+@keyframes sp2{to{transform:rotate(360deg);}}
+.pdots{position:absolute;inset:0;pointer-events:none;}
+.pdot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--c);opacity:0;}
+.mic-outer.active .pdot{animation:pd 1.8s ease-in-out infinite;}
+.pdot:nth-child(1){top:3px;left:calc(50% - 2.5px);animation-delay:0s;}
+.pdot:nth-child(2){top:calc(50% - 2.5px);right:3px;animation-delay:.45s;}
+.pdot:nth-child(3){bottom:3px;left:calc(50% - 2.5px);animation-delay:.9s;}
+.pdot:nth-child(4){top:calc(50% - 2.5px);left:3px;animation-delay:1.35s;}
+@keyframes pd{0%,100%{opacity:0;transform:scale(.5);}50%{opacity:1;transform:scale(1);}}
+.hex-btn{
+  position:relative;z-index:2;width:68px;height:68px;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:var(--bg2);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;
+}
+.hex-inner{
+  width:54px;height:54px;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:var(--bg3);border:1.5px solid var(--c2);
+  display:flex;align-items:center;justify-content:center;transition:border-color .2s;
+}
+.hex-btn.listening .hex-inner{border-color:var(--c);}
+.hex-btn.ok .hex-inner{border-color:var(--ok);}
+.hex-btn.err .hex-inner{border-color:var(--err);}
+.hex-btn:active{transform:scale(.95);}
+.mic-svg{width:22px;height:22px;}
+.mic-hint{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--m);margin-top:6px;text-align:center;}
+
+/* RECORDING INDICATOR */
+.rec-bar{
+  display:none;align-items:center;justify-content:center;gap:8px;
+  background:rgba(255,51,85,0.08);border:1px solid rgba(255,51,85,0.3);
+  border-radius:6px;padding:5px 12px;margin:4px 0;flex-shrink:0;
+}
+.rec-bar.show{display:flex;}
+.rec-dot{width:8px;height:8px;border-radius:50%;background:var(--err);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.rec-text{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--err);letter-spacing:2px;}
+.rec-time{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--err);}
+
+/* WAVEFORM CANVAS */
+.wave-wrap{height:36px;flex-shrink:0;margin:4px 0;background:var(--bg3);border-radius:6px;overflow:hidden;border:1px solid var(--b);}
+canvas#waveCanvas{width:100%;height:36px;}
+
+/* DISPLAY BOX */
+.display-box{
+  background:var(--bg2);border:1px solid var(--b);border-radius:10px;
+  padding:12px 14px;flex:1;display:flex;flex-direction:column;
+  justify-content:space-between;margin-top:6px;position:relative;overflow:hidden;
+}
+.display-box::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c),transparent);}
+.state-tag{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--m);margin-bottom:4px;}
+.zh-out{font-family:'Noto Sans SC',sans-serif;font-size:42px;font-weight:700;color:var(--c);line-height:1;min-height:52px;}
+.py-out{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--m);margin:3px 0 4px;min-height:16px;}
+.src-out{font-size:15px;font-weight:600;color:var(--t);min-height:20px;}
+.conf-row{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.conf-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--m);width:30px;}
+.conf-track{flex:1;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.conf-fill{height:100%;background:var(--c);border-radius:2px;transition:width .3s;width:0%;}
+.conf-pct{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--c);width:28px;text-align:right;}
+.noise-row{display:flex;align-items:center;gap:8px;margin-top:6px;background:var(--bg3);border-radius:5px;padding:5px 10px;}
+.noise-lbl{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--m);width:38px;}
+.nbars{display:flex;gap:2px;align-items:flex-end;height:16px;}
+.nbar{width:3px;border-radius:1px;background:var(--bg);transition:height .1s;}
+.nbar.lit{background:var(--c);}
+.noise-db{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--c);margin-left:auto;}
+
+/* RIGHT PANEL */
+.panel-right{flex:1;display:flex;flex-direction:column;padding:10px 12px;overflow:hidden;}
+.panel-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--m);margin-bottom:8px;}
+.cats{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;}
+.cat-btn{font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;padding:3px 9px;border-radius:3px;border:1px solid var(--b);background:transparent;color:var(--m);cursor:pointer;transition:all .15s;}
+.cat-btn.on{border-color:var(--c);color:var(--c);background:var(--cg);}
+.search{width:100%;background:var(--bg3);border:1px solid var(--b);border-radius:6px;padding:6px 10px;color:var(--t);font-size:13px;font-family:'Rajdhani',sans-serif;outline:none;margin-bottom:8px;}
+.search:focus{border-color:var(--c);}
+.search::placeholder{color:var(--m);}
+.cmds{flex:1;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:5px;align-content:start;}
+.cmds::-webkit-scrollbar{width:2px;}
+.cmds::-webkit-scrollbar-thumb{background:var(--b);}
+.cmd{background:var(--bg3);border:1px solid var(--b);border-radius:7px;padding:8px 10px;cursor:pointer;transition:all .15s;}
+.cmd:hover,.cmd:active{border-color:var(--c);background:var(--cg);}
+.cmd.done{border-color:var(--ok);background:rgba(0,255,153,0.05);}
+.cmd-en{font-size:11px;font-weight:600;color:var(--t);letter-spacing:.5px;}
+.cmd-ar{font-family:'Noto Sans Arabic',sans-serif;font-size:11px;color:var(--m);margin:1px 0;direction:rtl;}
+.cmd-cat{font-size:8px;color:var(--m);font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+.cmd-zh{font-family:'Noto Sans SC',sans-serif;font-size:18px;color:var(--c);}
+
+/* CHAT BUBBLE for casual responses */
+#chatBubble{
+  position:fixed;bottom:50px;left:50%;transform:translateX(-50%);
+  background:var(--bg2);border:1px solid var(--c);border-radius:12px;
+  padding:10px 18px;font-size:14px;font-weight:600;color:var(--c);
+  font-family:'Noto Sans Arabic',sans-serif;direction:rtl;text-align:center;
+  max-width:80%;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100;
+  box-shadow:0 0 20px rgba(0,229,255,0.2);
+}
+#chatBubble.show{opacity:1;}
+
+/* BOTTOM BAR */
+.botbar{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;border-top:1px solid var(--b);background:var(--bg2);font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--m);letter-spacing:1.5px;flex-shrink:0;}
+.wake-wrap{display:flex;align-items:center;gap:4px;}
+.wake-dot{width:5px;height:5px;border-radius:50%;background:var(--m);transition:all .3s;}
+.wake-dot.lit{background:var(--ok);box-shadow:0 0 5px var(--ok);}
+</style>
+</head>
+<body>
+
+<!-- PERMISSION OVERLAY -->
+<div id="permOverlay">
+  <div class="brand-icon" style="width:60px;height:60px;">
+    <svg viewBox="0 0 24 24" fill="none" style="width:32px;height:32px;">
+      <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#00e5ff" stroke-width="1.5" fill="none"/>
+      <rect x="9" y="4" width="6" height="10" rx="3" stroke="#00e5ff" stroke-width="1.2" fill="none"/>
+      <path d="M6 11C6 14.3137 8.68629 17 12 17C15.3137 17 18 14.3137 18 11" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
+      <line x1="12" y1="17" x2="12" y2="20" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <h2>BYD VOICE BRIDGE</h2>
+  <p>To use voice commands, this app needs access to your microphone.<br><br>اضغط الزر أدناه للسماح بالوصول للميكروفون<br>Press the button below to allow microphone access</p>
+  <button id="permBtn" onclick="requestMic()">🎤 ALLOW MICROPHONE · السماح للميكروفون</button>
+  <p style="font-size:11px;color:var(--m);margin-top:-10px;">If no permission dialog appears, tap commands manually from the list</p>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 20 20" fill="none">
+        <path d="M10 2L18 6.5V13.5L10 18L2 13.5V6.5L10 2Z" stroke="#00e5ff" stroke-width="1.2"/>
+        <path d="M10 6V14M6.5 8L10 6L13.5 8" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="brand-text">BYD VOICE BRIDGE</div>
+      <div class="brand-sub">DLINK · CHINESE VOICE SYSTEM</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="pill pwa">PWA</div>
+    <div class="pill off" id="micPill">MIC ✗</div>
+    <div class="pill on" id="netPill">ONLINE</div>
+  </div>
+</div>
+
+<!-- LANG BAR -->
+<div class="lang-bar">
+  <button class="lang-btn on" id="lbAr" onclick="setLang('ar')">🇪🇬 عربي (مصري)</button>
+  <button class="lang-btn" id="lbEn" onclick="setLang('en')">🇬🇧 English</button>
+  <button class="lang-btn" id="lbBoth" onclick="setLang('both')">BOTH · الاثنين</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- LEFT -->
+  <div class="panel-left">
+    <div class="mic-zone">
+      <div class="mic-outer" id="micOuter">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="pdots">
+          <div class="pdot"></div><div class="pdot"></div>
+          <div class="pdot"></div><div class="pdot"></div>
+        </div>
+        <button class="hex-btn" id="hexBtn" onclick="toggleListen()">
+          <div class="hex-inner">
+            <svg class="mic-svg" viewBox="0 0 24 24" fill="none">
+              <rect x="8" y="2" width="8" height="13" rx="4" stroke="#4a7a99" stroke-width="1.8" id="mBody"/>
+              <path d="M4 12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="mArch"/>
+              <line x1="12" y1="20" x2="12" y2="23" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="mLine"/>
+              <line x1="9" y1="23" x2="15" y2="23" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="mBase"/>
+              <line x1="10" y1="10" x2="10" y2="7" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f1" opacity=".4"/>
+              <line x1="12" y1="10" x2="12" y2="5" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f2" opacity=".4"/>
+              <line x1="14" y1="10" x2="14" y2="8" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f3" opacity=".4"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+      <div class="mic-hint" id="micHint">قول "BYD" أو اضغط الميكروفون</div>
+    </div>
+
+    <div class="rec-bar" id="recBar">
+      <div class="rec-dot"></div>
+      <span class="rec-text">RECORDING</span>
+      <span class="rec-time" id="recTime">0:00</span>
+    </div>
+
+    <div class="wave-wrap"><canvas id="waveCanvas" height="36"></canvas></div>
+
+    <div class="display-box">
+      <div>
+        <div class="state-tag" id="stateTag">WAITING FOR COMMAND · في انتظار الأمر</div>
+        <div class="zh-out" id="zhOut">BYD</div>
+        <div class="py-out" id="pyOut">bèi chǎo dí</div>
+        <div class="src-out" id="srcOut">Say a command or tap mic · قول أمر أو اضغط المايك</div>
+      </div>
+      <div>
+        <div class="conf-row">
+          <span class="conf-lbl">CONF</span>
+          <div class="conf-track"><div class="conf-fill" id="confFill"></div></div>
+          <span class="conf-pct" id="confPct">—</span>
+        </div>
+        <div class="noise-row">
+          <span class="noise-lbl">NOISE</span>
+          <div class="nbars" id="nbars"></div>
+          <span class="noise-db" id="noiseDb">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: COMMANDS -->
+  <div class="panel-right">
+    <div class="panel-title">COMMAND LIBRARY · مكتبة الأوامر</div>
+    <div class="cats" id="cats"></div>
+    <input class="search" id="search" placeholder="Search · ابحث..." oninput="renderCmds()">
+    <div class="cmds" id="cmds"></div>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="botbar">
+  <span>BYD VOICE BRIDGE v2.2 · OFFLINE READY</span>
+  <div class="wake-wrap">
+    <div class="wake-dot lit" id="wakeDot"></div>
+    <span id="wakeLabel">WAKE: "BYD" ARMED</span>
+  </div>
+</div>
+
+<!-- CHAT BUBBLE -->
+<div id="chatBubble"></div>
+
+<script>
+// ============ COMMAND DATABASE ============
+const CMDS=[
+  // CLIMATE
+  {id:1,en:'Turn on AC',ar:['شغل التكييف','فتح التكييف','اشغل المكيف'],zh:'开空调',py:'kāi kōngtiáo',cat:'CLIMATE'},
+  {id:2,en:'Turn off AC',ar:['اوقف التكييف','اقفل التكييف','اقفل المكيف'],zh:'关空调',py:'guān kōngtiáo',cat:'CLIMATE'},
+  {id:3,en:'Increase temperature',ar:['ارفع الحرارة','زود الحرارة','سخن شوية'],zh:'升高温度',py:'shēng gāo wēndù',cat:'CLIMATE'},
+  {id:4,en:'Decrease temperature',ar:['خفض الحرارة','برد شوية','قلل الحرارة'],zh:'降低温度',py:'jiàng dī wēndù',cat:'CLIMATE'},
+  {id:5,en:'Set temperature 16',ar:['اعمل تلاتاشر','الحرارة 16'],zh:'温度调到16度',py:'wēndù tiáo dào shíliù dù',cat:'CLIMATE'},
+  {id:6,en:'Set temperature 18',ar:['تمناشر درجة','الحرارة 18'],zh:'温度调到18度',py:'wēndù tiáo dào shíbā dù',cat:'CLIMATE'},
+  {id:7,en:'Set temperature 20',ar:['عشرين درجة','الحرارة 20','اعمل عشرين'],zh:'温度调到20度',py:'wēndù tiáo dào èrshí dù',cat:'CLIMATE'},
+  {id:8,en:'Set temperature 22',ar:['اتنين وعشرين','الحرارة 22'],zh:'温度调到22度',py:'wēndù tiáo dào èrshí èr dù',cat:'CLIMATE'},
+  {id:9,en:'Set temperature 24',ar:['اربعة وعشرين','الحرارة 24'],zh:'温度调到24度',py:'wēndù tiáo dào èrshí sì dù',cat:'CLIMATE'},
+  {id:10,en:'Max cooling',ar:['برودة قصوى','ابرد اوي','اقصى برودة'],zh:'最大制冷',py:'zuìdà zhìlěng',cat:'CLIMATE'},
+  {id:11,en:'Auto climate',ar:['اوتو','تكييف اوتوماتيك'],zh:'自动空调',py:'zìdòng kōngtiáo',cat:'CLIMATE'},
+  // WINDOWS
+  {id:12,en:'Open all windows',ar:['افتح كل الشبابيك','افتح النوافذ كلها'],zh:'打开所有车窗',py:'dǎkāi suǒyǒu chēchuāng',cat:'WINDOWS'},
+  {id:13,en:'Close all windows',ar:['اقفل كل الشبابيك','اقفل النوافذ'],zh:'关闭车窗',py:'guānbì chēchuāng',cat:'WINDOWS'},
+  {id:14,en:'Open front windows',ar:['افتح الشباك الامامي','افتح الامام'],zh:'打开前窗',py:'dǎkāi qiánchuāng',cat:'WINDOWS'},
+  {id:15,en:'Open rear windows',ar:['افتح الشباك الخلفي','افتح الخلف'],zh:'打开后窗',py:'dǎkāi hòuchuāng',cat:'WINDOWS'},
+  {id:16,en:'Open sunroof',ar:['افتح فتحة السقف','افتح السطح'],zh:'打开天窗',py:'dǎkāi tiānchuāng',cat:'WINDOWS'},
+  {id:17,en:'Close sunroof',ar:['اقفل فتحة السقف','اقفل السطح'],zh:'关闭天窗',py:'guānbì tiānchuāng',cat:'WINDOWS'},
+  // MEDIA
+  {id:18,en:'Volume up',ar:['ارفع الصوت','زود الصوت'],zh:'增大音量',py:'zēngdà yīnliàng',cat:'MEDIA'},
+  {id:19,en:'Volume down',ar:['خفض الصوت','قلل الصوت','هادي الصوت'],zh:'降低音量',py:'jiàng dī yīnliàng',cat:'MEDIA'},
+  {id:20,en:'Mute',ar:['بلاش صوت','اصمت','صفر الصوت'],zh:'静音',py:'jìngyīn',cat:'MEDIA'},
+  {id:21,en:'Next track',ar:['الأغنية الجاية','غير الأغنية'],zh:'下一首',py:'xià yī shǒu',cat:'MEDIA'},
+  {id:22,en:'Previous track',ar:['الأغنية اللي فاتت','رجع الأغنية'],zh:'上一首',py:'shàng yī shǒu',cat:'MEDIA'},
+  {id:23,en:'Play music',ar:['شغل موسيقى','شغل اغاني'],zh:'播放音乐',py:'bòfàng yīnyuè',cat:'MEDIA'},
+  {id:24,en:'Pause music',ar:['وقف الموسيقى','باوز'],zh:'暂停音乐',py:'zàntíng yīnyuè',cat:'MEDIA'},
+  // NAVIGATION
+  {id:25,en:'Show navigation',ar:['فتح الخريطة','فتح الناف'],zh:'显示导航',py:'xiǎnshì dǎoháng',cat:'NAV'},
+  {id:26,en:'Navigate home',ar:['روح البيت','طريق البيت'],zh:'回家',py:'huíjiā',cat:'NAV'},
+  {id:27,en:'Find gas station',ar:['ابحث عن بنزينة','فين البنزينة'],zh:'找加油站',py:'zhǎo jiāyóuzhàn',cat:'NAV'},
+  {id:28,en:'Find charging station',ar:['ابحث عن شحن','فين شحن السيارة'],zh:'找充电站',py:'zhǎo chōngdiànzhàn',cat:'NAV'},
+  {id:29,en:'Zoom in map',ar:['كبر الخريطة'],zh:'地图放大',py:'dìtú fàngdà',cat:'NAV'},
+  {id:30,en:'Zoom out map',ar:['صغر الخريطة'],zh:'地图缩小',py:'dìtú suōxiǎo',cat:'NAV'},
+  // VEHICLE
+  {id:31,en:'Check battery',ar:['كام شحن','الشحن كام','باقي كام'],zh:'查看电量',py:'chákàn diànliàng',cat:'VEHICLE'},
+  {id:32,en:'Start charging',ar:['ابدأ الشحن','شحن السيارة'],zh:'开始充电',py:'kāishǐ chōngdiàn',cat:'VEHICLE'},
+  {id:33,en:'Stop charging',ar:['وقف الشحن'],zh:'停止充电',py:'tíngzhǐ chōngdiàn',cat:'VEHICLE'},
+  {id:34,en:'Open trunk',ar:['افتح الشنطة','افتح الخزينة'],zh:'打开后备箱',py:'dǎkāi hòubèixiāng',cat:'VEHICLE'},
+  {id:35,en:'Lock doors',ar:['اقفل الأبواب','لوك'],zh:'锁门',py:'suǒmén',cat:'VEHICLE'},
+  {id:36,en:'Unlock doors',ar:['افتح الأبواب','فتح القفل'],zh:'开门',py:'kāimén',cat:'VEHICLE'},
+  // SYSTEM
+  {id:37,en:'Home screen',ar:['الصفحة الرئيسية','الهوم','ارجع للمين'],zh:'返回主界面',py:'fǎnhuí zhǔ jièmiàn',cat:'SYSTEM'},
+  {id:38,en:'Turn off screen',ar:['اقفل الشاشة','اطفي الشاشة'],zh:'关闭屏幕',py:'guānbì píngmù',cat:'SYSTEM'},
+  {id:39,en:'Bluetooth on',ar:['فتح البلوتوث','شغل البلوتوث'],zh:'打开蓝牙',py:'dǎkāi lányá',cat:'SYSTEM'},
+  {id:40,en:'Bluetooth off',ar:['اقفل البلوتوث'],zh:'关闭蓝牙',py:'guānbì lányá',cat:'SYSTEM'},
+  {id:41,en:'WiFi on',ar:['فتح الواي فاي','شغل النت'],zh:'打开无线网络',py:'dǎkāi wúxiàn wǎngluò',cat:'SYSTEM'},
+];
+
+// Casual chat responses (Egyptian Arabic)
+const CASUAL={
+  greet:[
+    {triggers:['ازيك','عامل ايه','ايه الاخبار','اخبارك','عاملة ايه'],resp:'أنا كويسة زي الفل! إزيك انت؟ 😊 قولي بتحب تعمل ايه النهارده؟'},
+    {triggers:['صباح الخير','صبح','good morning'],resp:'صباح النور يا فندم! ☀️ يارب يومك يبقى تمام تمام.'},
+    {triggers:['مساء الخير','مسا','good evening'],resp:'مساء الفل! 🌙 عامل ايه النهارده؟'},
+    {triggers:['انت مين','انتي مين','اسمك ايه'],resp:'أنا BYD Voice Bridge، المساعد الصوتي الذكي لسيارتك! 🚗'},
+    {triggers:['شكرا','مشكور','تسلم'],resp:'العفو! في أمر تاني؟ 😊'},
+    {triggers:['تعبان','مش كويس','زهقت'],resp:'متزهقش! ايه اللي محتاجه؟ انا هنا معاك دايما 💙'},
+    {triggers:['النهارده','اليوم'],resp:'النهارده يوم جميل للرحلة! 🚗 فين رايح؟'},
+    {triggers:['اه','تمام','ماشي'],resp:'تمام يا فندم! في حاجة تانية؟'},
+    {triggers:['انهاردة','انهارده'],resp:'عامل ايه انهارده؟ ايه اللي محتاجه من السيارة؟ 🚗'},
+  ],
+};
+
+const CATS=['ALL',...new Set(CMDS.map(c=>c.cat))];
+let activeCat='ALL', lastCmd=null, lang='ar';
+let micStream=null, audioCtx=null, analyser=null, recognition=null;
+let listening=false, micGranted=false;
+let recTimer=null, recSeconds=0;
+let wakeBuffer=[], wakeListening=false;
+let waveAnimId=null;
+let noiseTimer=null;
+let chatTimer=null;
+
+// ============ INIT ============
+(()=>{
+  const nb=document.getElementById('nbars');
+  for(let i=0;i<14;i++){const b=document.createElement('div');b.className='nbar';b.id='nb'+i;b.style.height='2px';nb.appendChild(b);}
+  buildCats();renderCmds();
+  startIdleNoise();
+  checkNet();
+  window.addEventListener('online',checkNet);
+  window.addEventListener('offline',checkNet);
+})();
+
+function checkNet(){
+  const p=document.getElementById('netPill');
+  if(navigator.onLine){p.textContent='ONLINE';p.className='pill on';}
+  else{p.textContent='OFFLINE';p.className='pill off';}
+}
+
+// ============ PERMISSION ============
+async function requestMic(){
+  document.getElementById('permBtn').textContent='⏳ Requesting...';
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,sampleRate:44100}});
+    micGranted=true;
+    document.getElementById('permOverlay').style.display='none';
+    document.getElementById('micPill').textContent='MIC ✓';
+    document.getElementById('micPill').className='pill mic-ok';
+    setupAudioAnalyser();
+    startWakeWordLoop();
+  }catch(e){
+    document.getElementById('permBtn').textContent='❌ Denied — Tap commands manually';
+    document.getElementById('permBtn').style.borderColor='var(--err)';
+    document.getElementById('permBtn').style.color='var(--err)';
+    setTimeout(()=>{document.getElementById('permOverlay').style.display='none';},2500);
+  }
+}
+
+function setupAudioAnalyser(){
+  if(!micStream)return;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=256;
+  const src=audioCtx.createMediaStreamSource(micStream);
+  src.connect(analyser);
+  stopIdleNoise();
+  startLiveNoise();
+  drawWave();
+}
+
+// ============ NOISE METERS ============
+function startIdleNoise(){
+  noiseTimer=setInterval(()=>{
+    const lvl=Math.floor(Math.random()*12+3);
+    document.getElementById('noiseDb').textContent=lvl+'dB';
+    for(let i=0;i<14;i++){
+      const h=Math.random()*4+1;
+      const b=document.getElementById('nb'+i);
+      b.style.height=Math.round(h)+'px';
+      b.className='nbar';
+    }
+  },500);
+}
+function stopIdleNoise(){clearInterval(noiseTimer);}
+function startLiveNoise(){
+  if(!analyser)return;
+  const data=new Uint8Array(analyser.frequencyBinCount);
+  noiseTimer=setInterval(()=>{
+    analyser.getByteFrequencyData(data);
+    const avg=data.slice(0,50).reduce((a,b)=>a+b,0)/50;
+    const db=Math.round(20*Math.log10((avg||1)/255)+90);
+    document.getElementById('noiseDb').textContent=db+'dB';
+    for(let i=0;i<14;i++){
+      const h=Math.min(16,(data[i*2]||0)/16+1);
+      const b=document.getElementById('nb'+i);
+      b.style.height=Math.round(h)+'px';
+      b.className='nbar'+(h>6?' lit':'');
+    }
+  },100);
+}
+
+// ============ WAVEFORM CANVAS ============
+function drawWave(){
+  if(!analyser)return;
+  const canvas=document.getElementById('waveCanvas');
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||300;
+  const H=36;
+  canvas.width=W;
+  const data=new Uint8Array(analyser.fftSize);
+  function frame(){
+    analyser.getByteTimeDomainData(data);
+    ctx.clearRect(0,0,W,H);
+    ctx.beginPath();
+    ctx.strokeStyle=listening?'#00e5ff':'#0097a7';
+    ctx.lineWidth=1.5;
+    const step=W/data.length;
+    for(let i=0;i<data.length;i++){
+      const v=data[i]/128-1;
+      const y=H/2+v*(H/2-2);
+      i===0?ctx.moveTo(0,y):ctx.lineTo(i*step,y);
+    }
+    ctx.stroke();
+    waveAnimId=requestAnimationFrame(frame);
+  }
+  if(waveAnimId)cancelAnimationFrame(waveAnimId);
+  frame();
+}
+
+// ============ WAKE WORD (continuous background) ============
+function startWakeWordLoop(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window))return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  function loop(){
+    if(listening)return;
+    const r=new SR();
+    r.lang=lang==='en'?'en-US':'ar-EG';
+    r.interimResults=false;
+    r.continuous=false;
+    r.maxAlternatives=3;
+    r.onresult=(e)=>{
+      const tr=Array.from(e.results).map(r=>r[0].transcript).join(' ').toLowerCase();
+      if(tr.includes('byd')||tr.includes('بي واي دي')||tr.includes('باي دي')||tr.includes('بيد')){
+        if(!listening){startListen();}
+      } else {
+        checkCasual(tr);
+        const m=fuzzyMatch(tr);
+        if(m&&m.conf>60){execCmd(m.cmd);}
+        else if(!listening){setTimeout(loop,800);}
+      }
+    };
+    r.onend=()=>{if(!listening)setTimeout(loop,800);};
+    r.onerror=()=>{if(!listening)setTimeout(loop,2000);};
+    r.start();
+  }
+  loop();
+}
+
+// ============ LISTEN ============
+function toggleListen(){
+  if(!micGranted){requestMic();return;}
+  if(listening){stopListen();return;}
+  startListen();
+}
+
+function startListen(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
+    setDisplay('NOT SUPPORTED','Not supported in this browser','-','',0);
+    return;
+  }
+  if(listening)return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.lang=lang==='en'?'en-US':'ar-EG';
+  recognition.interimResults=true;
+  recognition.continuous=false;
+  recognition.maxAlternatives=5;
+  recognition.onstart=()=>{
+    listening=true;
+    document.getElementById('micOuter').classList.add('active');
+    document.getElementById('hexBtn').classList.add('listening');
+    document.getElementById('micHint').textContent='🎙️ LISTENING · بسمعك...';
+    document.getElementById('recBar').classList.add('show');
+    setMicSvgColor('#00e5ff');
+    setMicFreqBars(true);
+    recSeconds=0;
+    recTimer=setInterval(()=>{
+      recSeconds++;
+      const m=Math.floor(recSeconds/60);
+      const s=recSeconds%60;
+      document.getElementById('recTime').textContent=m+':'+(s<10?'0':'')+s;
+    },1000);
+    document.getElementById('stateTag').textContent='LISTENING · بسمعك';
+    document.getElementById('confFill').style.width='0%';
+    document.getElementById('confPct').textContent='—';
+  };
+  recognition.onresult=(e)=>{
+    const tr=Array.from(e.results).map(r=>r[0].transcript).join(' ');
+    const cf=e.results[e.results.length-1][0].confidence||0.6;
+    const pct=Math.round(cf*100);
+    document.getElementById('srcOut').textContent=tr;
+    document.getElementById('confFill').style.width=pct+'%';
+    document.getElementById('confPct').textContent=pct+'%';
+    // Check casual chat
+    if(checkCasual(tr.toLowerCase())){stopListen();return;}
+    // Try match at 55%+
+    if(pct>=55){
+      const m=fuzzyMatch(tr);
+      if(m&&m.conf>50){stopListen();execCmd(m.cmd);}
+    }
+  };
+  recognition.onerror=(ev)=>{
+    const ignore=['no-speech','aborted'];
+    if(!ignore.includes(ev.error)){
+      document.getElementById('hexBtn').classList.add('err');
+      document.getElementById('stateTag').textContent='ERROR: '+ev.error.toUpperCase();
+      setTimeout(()=>document.getElementById('hexBtn').classList.remove('err'),2000);
+    }
+    stopListen();
+  };
+  recognition.onend=()=>stopListen();
+  recognition.start();
+}
+
+function stopListen(){
+  listening=false;
+  if(recognition){try{recognition.stop();}catch(e){}recognition=null;}
+  clearInterval(recTimer);
+  document.getElementById('recBar').classList.remove('show');
+  document.getElementById('micOuter').classList.remove('active');
+  document.getElementById('hexBtn').classList.remove('listening');
+  document.getElementById('micHint').textContent='قول "BYD" أو اضغط الميكروفون';
+  setMicSvgColor('#4a7a99');
+  setMicFreqBars(false);
+  if(document.getElementById('stateTag').textContent.includes('LISTENING'))
+    document.getElementById('stateTag').textContent='READY · جاهز';
+  // restart wake word
+  if(micGranted)setTimeout(startWakeWordLoop,1000);
+}
+
+// ============ FUZZY MATCH ============
+function fuzzyMatch(text){
+  const t=text.toLowerCase().trim();
+  let best=null,bestSc=0;
+  CMDS.forEach(cmd=>{
+    // Build all trigger phrases
+    const phrases=[cmd.en.toLowerCase(),...(cmd.ar||[])];
+    phrases.forEach(ph=>{
+      const phWords=ph.toLowerCase().split(/\s+/);
+      const tWords=t.split(/\s+/);
+      let hits=0;
+      phWords.forEach(pw=>tWords.forEach(tw=>{
+        if(pw.length>1&&(pw.includes(tw)||tw.includes(pw)))hits++;
+      }));
+      const sc=hits/Math.max(phWords.length,1);
+      if(sc>bestSc){bestSc=sc;best=cmd;}
+    });
+    // Direct phrase includes
+    phrases.forEach(ph=>{
+      if(t.includes(ph.toLowerCase())||ph.toLowerCase().includes(t)){
+        const sc=0.9;
+        if(sc>bestSc){bestSc=sc;best=cmd;}
+      }
+    });
+  });
+  return bestSc>0.3?{cmd:best,conf:Math.round(bestSc*100)}:null;
+}
+
+// ============ CASUAL CHAT ============
+function checkCasual(text){
+  const t=text.toLowerCase();
+  for(const group of CASUAL.greet){
+    if(group.triggers.some(tr=>t.includes(tr))){
+      showChat(group.resp);
+      setDisplay('CHAT RESPONSE',group.resp,'💬','',0);
+      return true;
+    }
+  }
+  return false;
+}
+
+function showChat(msg){
+  clearTimeout(chatTimer);
+  const b=document.getElementById('chatBubble');
+  b.textContent=msg;
+  b.classList.add('show');
+  chatTimer=setTimeout(()=>b.classList.remove('show'),4000);
+}
+
+// ============ EXECUTE COMMAND ============
+function execCmd(cmd){
+  lastCmd=cmd;
+  const dispText=lang==='en'?cmd.en:(cmd.ar?cmd.ar[0]:cmd.en);
+  setDisplay('EXECUTING · تنفيذ الأمر',dispText,cmd.zh,cmd.py,96);
+  document.getElementById('hexBtn').classList.add('ok');
+  renderCmds();
+  speakZh(cmd.zh);
+  setTimeout(()=>{
+    document.getElementById('hexBtn').classList.remove('ok');
+    document.getElementById('stateTag').textContent='DONE · تم ✓';
+  },2500);
+}
+
+function setDisplay(state,src,zh,py,conf){
+  document.getElementById('stateTag').textContent=state;
+  document.getElementById('srcOut').textContent=src;
+  document.getElementById('zhOut').textContent=zh||'BYD';
+  document.getElementById('pyOut').textContent=py||'';
+  document.getElementById('confFill').style.width=conf+'%';
+  document.getElementById('confPct').textContent=conf?conf+'%':'—';
+}
+
+// ============ TTS — Chinese ============
+function speakZh(text){
+  // Method 1: Web Speech API
+  if(window.speechSynthesis){
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang='zh-CN';u.rate=0.85;u.pitch=1.0;u.volume=1.0;
+    // Try to find a Chinese voice
+    const voices=window.speechSynthesis.getVoices();
+    const zhVoice=voices.find(v=>v.lang.startsWith('zh'));
+    if(zhVoice)u.voice=zhVoice;
+    window.speechSynthesis.speak(u);
+    // If speechSynthesis doesn't fire (Android WebView issue), also try audio element
+    setTimeout(()=>{
+      if(window.speechSynthesis.speaking)return;
+      // Fallback: use audio oscillator as beep confirmation
+      playBeep(880,0.1);
+    },300);
+    return;
+  }
+  // Method 2: Beep fallback
+  playBeep(880,0.15);
+}
+
+function playBeep(freq,dur){
+  try{
+    const ac=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ac.createOscillator();
+    const gain=ac.createGain();
+    osc.connect(gain);gain.connect(ac.destination);
+    osc.frequency.value=freq;osc.type='sine';
+    gain.gain.setValueAtTime(0.3,ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    osc.start();osc.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+
+// ============ MIC SVG ============
+function setMicSvgColor(col){
+  ['mBody','mArch','mLine','mBase','f1','f2','f3'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.setAttribute('stroke',col);
+  });
+}
+function setMicFreqBars(on){
+  const ys=on?['7','4','7']:['7','7','7'];
+  const ops=on?['1','1','1']:['0.4','0.4','0.4'];
+  ['f1','f2','f3'].forEach((id,i)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.setAttribute('y2',ys[i]);
+    el.setAttribute('opacity',ops[i]);
+    if(on){
+      el.style.animation=`freqAnim${i} ${0.4+i*0.1}s ease-in-out infinite alternate`;
+    }else{el.style.animation='';}
+  });
+}
+
+// ============ LANG ============
+function setLang(l){
+  lang=l;
+  document.getElementById('lbAr').className='lang-btn'+(l==='ar'?' on':'');
+  document.getElementById('lbEn').className='lang-btn'+(l==='en'?' on':'');
+  document.getElementById('lbBoth').className='lang-btn'+(l==='both'?' on':'');
+  if(recognition){recognition.lang=l==='en'?'en-US':'ar-EG';}
+  renderCmds();
+}
+
+// ============ CATS + COMMANDS ============
+function buildCats(){
+  const el=document.getElementById('cats');el.innerHTML='';
+  CATS.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='cat-btn'+(c===activeCat?' on':'');
+    b.textContent=c;
+    b.onclick=()=>{activeCat=c;buildCats();renderCmds();};
+    el.appendChild(b);
+  });
+}
+
+function renderCmds(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  const list=CMDS.filter(c=>{
+    const mc=activeCat==='ALL'||c.cat===activeCat;
+    const mq=!q||c.en.toLowerCase().includes(q)||c.zh.includes(q)||(c.ar||[]).join(' ').includes(q);
+    return mc&&mq;
+  });
+  const el=document.getElementById('cmds');el.innerHTML='';
+  list.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='cmd'+(lastCmd&&lastCmd.id===c.id?' done':'');
+    const arLabel=(c.ar&&c.ar.length)?c.ar[0]:'';
+    const showAr=(lang==='ar'||lang==='both')&&arLabel;
+    const showEn=(lang==='en'||lang==='both');
+    d.innerHTML=`
+      ${showEn?`<div class="cmd-en">${c.en}</div>`:''}
+      ${showAr?`<div class="cmd-ar">${arLabel}</div>`:''}
+      <div class="cmd-cat">${c.cat}</div>
+      <div class="cmd-zh">${c.zh}</div>`;
+    d.onclick=()=>execCmd(c);
+    el.appendChild(d);
+  });
+}
+
+// ============ FREQ BAR ANIMATION ============
+const styleEl=document.createElement('style');
+styleEl.textContent=`
+@keyframes freqAnim0{from{y2:10px}to{y2:4px}}
+@keyframes freqAnim1{from{y2:10px}to{y2:3px}}
+@keyframes freqAnim2{from{y2:10px}to{y2:6px}}
+`;
+document.head.appendChild(styleEl);
+</script>
+</body>
+</html>
