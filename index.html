@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<title>BYD Voice Bridge</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Noto+Sans+SC:wght@400;700&family=Share+Tech+Mono&family=Noto+Sans+Arabic:wght@400;600&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --c:#00e5ff;--c2:#0097a7;--cg:rgba(0,229,255,0.13);
+  --bg:#060a10;--bg2:#0a1220;--bg3:#0e1a28;--bg4:#111f30;
+  --t:#ddeeff;--m:#4a7a99;--b:rgba(0,229,255,0.18);
+  --ok:#00ff99;--err:#ff3355;--warn:#ffcc00;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:'Rajdhani',sans-serif;color:var(--t);display:flex;flex-direction:column;}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--b);background:var(--bg2);flex-shrink:0;height:46px;}
+.brand{display:flex;align-items:center;gap:9px;}
+.bicon{width:30px;height:30px;border:1.5px solid var(--c);border-radius:7px;display:flex;align-items:center;justify-content:center;background:var(--cg);}
+.btitle{font-size:15px;font-weight:700;letter-spacing:3px;color:var(--c);}
+.bsub{font-size:8px;letter-spacing:2px;color:var(--m);font-family:'Share Tech Mono',monospace;}
+.pills{display:flex;gap:5px;align-items:center;}
+.pill{font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid;letter-spacing:1px;}
+.pill.ok{border-color:var(--ok);color:var(--ok);}
+.pill.no{border-color:var(--err);color:var(--err);}
+.pill.cy{border-color:var(--c);color:var(--c);}
+.pill.mu{border-color:var(--m);color:var(--m);}
+.pill.warn{border-color:var(--warn);color:var(--warn);}
+
+/* WAKE INDICATOR in topbar */
+.wake-ind{display:flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;}
+.wake-ind .wd{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);animation:wdpulse 2s ease-in-out infinite;}
+.wake-ind.armed .wd{background:var(--ok);}
+.wake-ind.listening-wake .wd{background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.wake-ind.active .wd{background:var(--c);box-shadow:0 0 10px var(--c);}
+@keyframes wdpulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.wake-lbl{color:var(--m);}
+
+/* ── MIC PERMISSION BAR ── */
+.mpbar{display:none;align-items:center;gap:8px;background:rgba(255,51,85,.1);border-bottom:1px solid rgba(255,51,85,.3);padding:6px 16px;flex-shrink:0;}
+.mpbar.show{display:flex;}
+.mptxt{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--err);letter-spacing:1px;flex:1;}
+.mpbtn{background:var(--err);color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:10px;font-family:'Share Tech Mono',monospace;cursor:pointer;letter-spacing:1px;}
+
+/* ── MAIN LAYOUT: LEFT mic panel + RIGHT full-height commands ── */
+.main{display:flex;flex:1;overflow:hidden;}
+
+/* LEFT: mic + display only */
+.left{
+  width:280px;min-width:260px;max-width:300px;
+  display:flex;flex-direction:column;
+  padding:8px 12px;border-right:1px solid var(--b);
+  overflow:hidden;flex-shrink:0;
+}
+
+/* ── HEX MIC ZONE ── */
+.mzone{display:flex;flex-direction:column;align-items:center;padding:4px 0 2px;flex-shrink:0;}
+.mouter{position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center;}
+.ring{position:absolute;border-radius:50%;border:1.5px solid transparent;opacity:0;transition:opacity .4s;}
+.ring.r1{inset:0;border-top-color:var(--c);border-right-color:var(--c);animation:sp1 2s linear infinite;}
+.ring.r2{inset:10%;border-left-color:var(--c2);border-bottom-color:var(--c2);animation:sp2 1.4s linear infinite reverse;}
+.ring.r3{inset:20%;border-top-color:rgba(0,229,255,.3);border-bottom-color:rgba(0,229,255,.3);animation:sp1 3s linear infinite;}
+.mouter.act .ring{opacity:1;}
+.mouter.wake .ring.r1{opacity:.5;}
+@keyframes sp1{to{transform:rotate(360deg);}}
+@keyframes sp2{to{transform:rotate(360deg);}}
+.pdots{position:absolute;inset:0;pointer-events:none;}
+.pdot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--c);opacity:0;}
+.mouter.act .pdot{animation:pd 1.6s ease-in-out infinite;}
+.pdot:nth-child(1){top:1px;left:calc(50% - 2.5px);}
+.pdot:nth-child(2){top:calc(50% - 2.5px);right:1px;animation-delay:.4s;}
+.pdot:nth-child(3){bottom:1px;left:calc(50% - 2.5px);animation-delay:.8s;}
+.pdot:nth-child(4){top:calc(50% - 2.5px);left:1px;animation-delay:1.2s;}
+@keyframes pd{0%,100%{opacity:0;transform:scale(.4);}50%{opacity:1;transform:scale(1);}}
+.hexbtn{
+  position:relative;z-index:2;width:68px;height:68px;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:var(--bg2);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;
+}
+.hexin{
+  width:54px;height:54px;
+  clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);
+  background:var(--bg3);border:2px solid var(--c2);
+  display:flex;align-items:center;justify-content:center;transition:all .25s;
+}
+.hexbtn.lst .hexin{border-color:var(--c);box-shadow:0 0 14px rgba(0,229,255,.4);}
+.hexbtn.ok2 .hexin{border-color:var(--ok);box-shadow:0 0 10px rgba(0,255,153,.3);}
+.hexbtn.er .hexin{border-color:var(--err);}
+.hexbtn.wake-rdy .hexin{border-color:var(--warn);box-shadow:0 0 8px rgba(255,204,0,.3);}
+.hexbtn:active{transform:scale(.94);}
+.msvg{width:22px;height:22px;}
+.mhint{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--m);margin-top:5px;text-align:center;letter-spacing:1px;}
+
+/* WAKE STATUS label under mic */
+.wake-status{
+  font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1.5px;
+  text-align:center;padding:3px 10px;border-radius:3px;margin:3px 0;
+  background:var(--bg3);border:1px solid var(--b);color:var(--m);
+  transition:all .3s;
+}
+.wake-status.armed{color:var(--ok);border-color:rgba(0,255,153,.3);}
+.wake-status.active{color:var(--c);border-color:var(--b);background:var(--cg);}
+.wake-status.listening{color:var(--warn);border-color:rgba(255,204,0,.3);animation:blink2 .8s infinite;}
+@keyframes blink2{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+/* REC BAR */
+.recbar{display:none;align-items:center;justify-content:center;gap:6px;background:rgba(255,51,85,.08);border:1px solid rgba(255,51,85,.2);border-radius:5px;padding:4px 10px;flex-shrink:0;}
+.recbar.show{display:flex;}
+.reddot{width:6px;height:6px;border-radius:50%;background:var(--err);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.15;}}
+.rectxt{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--err);letter-spacing:2px;}
+.rectime{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--err);}
+
+/* WAVE */
+.wavewrap{height:30px;flex-shrink:0;margin:3px 0;background:var(--bg3);border-radius:5px;border:1px solid var(--b);overflow:hidden;}
+#wc{width:100%;height:30px;display:block;}
+
+/* DISPLAY BOX */
+.dbox{background:var(--bg2);border:1px solid var(--b);border-radius:9px;padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;margin-top:4px;position:relative;overflow:hidden;}
+.dbox::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--c),transparent);}
+.dtag{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--m);margin-bottom:3px;}
+.zhout{font-family:'Noto Sans SC',sans-serif;font-size:38px;font-weight:700;color:var(--c);line-height:1;min-height:46px;}
+.pyout{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--m);margin:2px 0;min-height:14px;}
+.srout{font-size:13px;font-weight:600;color:var(--t);min-height:18px;font-family:'Noto Sans Arabic',sans-serif;}
+.cbar{display:flex;align-items:center;gap:6px;margin-top:6px;}
+.clbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--m);width:28px;}
+.ctrk{flex:1;height:2px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+.cfil{height:100%;background:var(--c);border-radius:2px;transition:width .3s;width:0%;}
+.cpct{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--c);width:26px;text-align:right;}
+.nrow{display:flex;align-items:center;gap:6px;margin-top:5px;background:var(--bg3);border-radius:4px;padding:4px 8px;}
+.nlbl{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--m);width:34px;}
+.nbars{display:flex;gap:2px;align-items:flex-end;height:14px;}
+.nb{width:3px;border-radius:1px;background:var(--bg2);transition:height .1s;}
+.nb.lit{background:var(--c);}
+.ndb{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--c);margin-left:auto;}
+
+/* ── RIGHT: FULL HEIGHT COMMANDS ── */
+.right{flex:1;display:flex;flex-direction:column;padding:8px 12px;overflow:hidden;min-width:0;}
+
+/* STATUS STRIP at top of right panel */
+.rstrip{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-shrink:0;}
+.rstatus{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--m);}
+.rstatus span{color:var(--c);}
+
+/* CATEGORY TABS */
+.cats{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;flex-shrink:0;}
+.catbtn{
+  font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;
+  padding:3px 10px;border-radius:3px;border:1px solid var(--b);
+  background:transparent;color:var(--m);cursor:pointer;transition:all .15s;
+  letter-spacing:.5px;
+}
+.catbtn.on{border-color:var(--c);color:var(--c);background:var(--cg);}
+
+/* SEARCH */
+.srch{
+  width:100%;background:var(--bg3);border:1px solid var(--b);border-radius:6px;
+  padding:5px 10px;color:var(--t);font-size:12px;font-family:'Rajdhani',sans-serif;
+  outline:none;margin-bottom:6px;flex-shrink:0;letter-spacing:.5px;
+}
+.srch:focus{border-color:var(--c);}
+.srch::placeholder{color:var(--m);}
+
+/* COMMANDS GRID — 3 columns, full width */
+.cmds{
+  flex:1;overflow-y:auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:5px;align-content:start;
+  min-width:0;
+}
+.cmds::-webkit-scrollbar{width:2px;}
+.cmds::-webkit-scrollbar-thumb{background:var(--b);}
+
+/* COMMAND CARD */
+.cmd{
+  background:var(--bg3);border:1px solid var(--b);border-radius:8px;
+  padding:9px 10px;cursor:pointer;transition:all .15s;
+  user-select:none;display:flex;flex-direction:column;gap:2px;min-width:0;
+}
+.cmd:active{transform:scale(.97);}
+.cmd:hover{border-color:var(--c);background:var(--cg);}
+.cmd.done{border-color:var(--ok);background:rgba(0,255,153,.05);}
+.cmd.special{border-color:rgba(255,204,0,.3);background:rgba(255,204,0,.04);}
+.cmd.special:hover{border-color:var(--warn);}
+/* Wake command card — highlighted */
+.cmd.wake-cmd{border-color:rgba(0,229,255,.4);background:var(--cg);}
+.cen{font-size:11px;font-weight:600;color:var(--t);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.car{font-family:'Noto Sans Arabic',sans-serif;font-size:10px;color:var(--m);direction:rtl;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ccat{font-size:7px;color:var(--m);font-family:'Share Tech Mono',monospace;letter-spacing:1px;opacity:.7;}
+.czh{font-family:'Noto Sans SC',sans-serif;font-size:18px;color:var(--c);line-height:1.1;margin-top:1px;}
+
+/* CHAT BUBBLE */
+#chat{
+  position:fixed;bottom:36px;left:50%;transform:translateX(-50%) translateY(8px);
+  background:var(--bg2);border:1px solid var(--c);border-radius:12px;
+  padding:8px 18px;font-size:13px;font-family:'Noto Sans Arabic',sans-serif;
+  direction:rtl;text-align:center;max-width:70%;
+  opacity:0;transition:all .35s;pointer-events:none;z-index:500;
+  box-shadow:0 0 20px rgba(0,229,255,.2);color:var(--c);
+}
+#chat.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* BOTTOM BAR */
+.bot{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 14px;border-top:1px solid var(--b);background:var(--bg2);
+  font-family:'Share Tech Mono',monospace;font-size:7px;color:var(--m);
+  letter-spacing:1.5px;flex-shrink:0;height:26px;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="brand">
+    <div class="bicon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#00e5ff" stroke-width="1.5"/>
+        <rect x="9" y="5" width="6" height="9" rx="3" stroke="#00e5ff" stroke-width="1.2"/>
+        <path d="M6 12C6 15.3 8.7 18 12 18C15.3 18 18 15.3 18 12" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
+        <line x1="12" y1="18" x2="12" y2="21" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="btitle">BYD VOICE BRIDGE</div>
+      <div class="bsub">DLINK · AR + EN → ZH</div>
+    </div>
+  </div>
+  <div class="pills">
+    <div class="pill cy">OFFLINE</div>
+    <div class="pill mu" id="micPill">MIC —</div>
+    <div class="pill ok" id="netPill">ONLINE</div>
+    <!-- WAKE INDICATOR -->
+    <div class="wake-ind armed" id="wakeInd">
+      <div class="wd"></div>
+      <span class="wake-lbl" id="wakeLbl">Hi BYD · ARMED</span>
+    </div>
+  </div>
+</div>
+
+<!-- MIC PERMISSION BAR -->
+<div class="mpbar" id="mpbar">
+  <span class="mptxt" id="mptxt">⚠ MICROPHONE REQUIRED FOR VOICE COMMANDS</span>
+  <button class="mpbtn" onclick="grantMic()">ALLOW MIC</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ── LEFT: MIC + STATUS ── -->
+  <div class="left">
+    <div class="mzone">
+      <div class="mouter" id="mo">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <div class="pdots">
+          <div class="pdot"></div><div class="pdot"></div>
+          <div class="pdot"></div><div class="pdot"></div>
+        </div>
+        <button class="hexbtn" id="hb" onclick="toggleListen()">
+          <div class="hexin">
+            <svg class="msvg" viewBox="0 0 24 24" fill="none">
+              <rect x="8" y="2" width="8" height="13" rx="4" stroke="#4a7a99" stroke-width="1.8" id="mb"/>
+              <path d="M4 12C4 16.4 7.6 20 12 20C16.4 20 20 16.4 20 12" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="ma"/>
+              <line x1="12" y1="20" x2="12" y2="23" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="ml"/>
+              <line x1="9" y1="23" x2="15" y2="23" stroke="#4a7a99" stroke-width="1.8" stroke-linecap="round" id="mba"/>
+              <line x1="10" y1="10" x2="10" y2="7" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f1" opacity=".4"/>
+              <line x1="12" y1="10" x2="12" y2="5" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f2" opacity=".4"/>
+              <line x1="14" y1="10" x2="14" y2="8" stroke="#4a7a99" stroke-width="1.2" stroke-linecap="round" id="f3" opacity=".4"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+      <div class="mhint" id="mhint">TAP · or say Hi BYD</div>
+    </div>
+
+    <!-- WAKE STATUS -->
+    <div class="wake-status armed" id="wkStat">Hi BYD · ARMED</div>
+
+    <!-- REC BAR -->
+    <div class="recbar" id="rb">
+      <div class="reddot"></div>
+      <span class="rectxt">REC</span>
+      <span class="rectime" id="rt">0:00</span>
+    </div>
+
+    <!-- WAVEFORM -->
+    <div class="wavewrap"><canvas id="wc" height="30"></canvas></div>
+
+    <!-- DISPLAY -->
+    <div class="dbox">
+      <div>
+        <div class="dtag" id="dtag">WAITING · في انتظار الأمر</div>
+        <div class="zhout" id="zhout">BYD</div>
+        <div class="pyout" id="pyout">bèi yǎ dí</div>
+        <div class="srout" id="srout">Say a command or tap mic</div>
+      </div>
+      <div>
+        <div class="cbar">
+          <span class="clbl">CONF</span>
+          <div class="ctrk"><div class="cfil" id="cf"></div></div>
+          <span class="cpct" id="cp">—</span>
+        </div>
+        <div class="nrow">
+          <span class="nlbl">NOISE</span>
+          <div class="nbars" id="nb"></div>
+          <span class="ndb" id="ndb">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: FULL COMMANDS ── -->
+  <div class="right">
+    <!-- Status strip replacing COMMAND LIBRARY label -->
+    <div class="rstrip">
+      <span class="rstatus">WAITING · في انتظار الأمر &nbsp;|&nbsp; <span id="cmdCount">0</span> COMMANDS</span>
+      <span class="rstatus" style="color:var(--m);">AR + EN · AUTO</span>
+    </div>
+
+    <!-- CATS -->
+    <div class="cats" id="cats"></div>
+
+    <!-- SEARCH -->
+    <input class="srch" id="srch" placeholder="Search · ابحث بالعربي أو English..." oninput="renderCmds()">
+
+    <!-- COMMANDS GRID 3-col full width -->
+    <div class="cmds" id="cmds"></div>
+  </div>
+</div>
+
+<!-- BOTTOM -->
+<div class="bot">
+  <span>BYD VOICE BRIDGE v4.0 · AR+EN AUTO · OFFLINE READY</span>
+  <span id="botStatus">READY</span>
+</div>
+
+<!-- CHAT BUBBLE -->
+<div id="chat"></div>
+
+<script>
+// ════════════════════════════════════════
+//  DATABASE
+// ════════════════════════════════════════
+const DB=[
+  // ── WAKE / SYSTEM WAKE ──
+  {id:0,en:'Hi BYD',ar:['هاي بي واي دي','هاي بيد','استيقظ','استعد'],zh:'你好，BYD准备好了',py:'nǐ hǎo, BYD zhǔnbèi hǎo le',cat:'WAKE',special:true,isWake:true},
+
+  // ── CLIMATE ──
+  {id:1,en:'Turn on AC',ar:['شغل التكييف','فتح التكييف','اشغل المكيف'],zh:'开空调',py:'kāi kōngtiáo',cat:'CLIMATE'},
+  {id:2,en:'Turn off AC',ar:['اوقف التكييف','اقفل التكييف','وقف المكيف'],zh:'关空调',py:'guān kōngtiáo',cat:'CLIMATE'},
+  {id:3,en:'Increase temperature',ar:['ارفع الحرارة','زود الحرارة','سخن','دفي'],zh:'升高温度',py:'shēng gāo wēndù',cat:'CLIMATE'},
+  {id:4,en:'Decrease temperature',ar:['خفض الحرارة','برد شوية','قلل الحرارة'],zh:'降低温度',py:'jiàng dī wēndù',cat:'CLIMATE'},
+  {id:5,en:'Temperature 16',ar:['ستاشر درجة','١٦ درجة'],zh:'温度调到16度',py:'wēndù tiáo dào shíliù dù',cat:'CLIMATE'},
+  {id:6,en:'Temperature 18',ar:['تمناشر درجة','١٨ درجة'],zh:'温度调到18度',py:'wēndù tiáo dào shíbā dù',cat:'CLIMATE'},
+  {id:7,en:'Temperature 20',ar:['عشرين درجة','٢٠ درجة','اعمل عشرين'],zh:'温度调到20度',py:'wēndù tiáo dào èrshí dù',cat:'CLIMATE'},
+  {id:8,en:'Temperature 22',ar:['اتنين وعشرين','٢٢ درجة'],zh:'温度调到22度',py:'wēndù tiáo dào èrshí èr dù',cat:'CLIMATE'},
+  {id:9,en:'Temperature 24',ar:['اربعة وعشرين','٢٤ درجة'],zh:'温度调到24度',py:'wēndù tiáo dào èrshí sì dù',cat:'CLIMATE'},
+  {id:10,en:'Max cooling',ar:['برودة قصوى','ابرد اوي','اقصى برودة'],zh:'最大制冷',py:'zuìdà zhìlěng',cat:'CLIMATE'},
+  {id:11,en:'Auto climate',ar:['اوتو تكييف','تكييف اوتوماتيك'],zh:'自动空调',py:'zìdòng kōngtiáo',cat:'CLIMATE'},
+  {id:39,en:'Fan speed up',ar:['زود الفان','سرعة التهوية','زود التهوية'],zh:'增加风速',py:'zēngjiā fēng sù',cat:'CLIMATE'},
+  {id:40,en:'Fan speed down',ar:['قلل الفان','قلل التهوية'],zh:'降低风速',py:'jiàng dī fēng sù',cat:'CLIMATE'},
+
+  // ── WINDOWS ──
+  {id:12,en:'Open all windows',ar:['افتح كل الشبابيك','افتح النوافذ كلها'],zh:'打开所有车窗',py:'dǎkāi suǒyǒu chēchuāng',cat:'WINDOWS'},
+  {id:13,en:'Close all windows',ar:['اقفل كل الشبابيك','اقفل النوافذ'],zh:'关闭车窗',py:'guānbì chēchuāng',cat:'WINDOWS'},
+  {id:14,en:'Open front window',ar:['افتح الشباك الامامي','افتح الامامي'],zh:'打开前窗',py:'dǎkāi qiánchuāng',cat:'WINDOWS'},
+  {id:15,en:'Open rear window',ar:['افتح الشباك الخلفي','افتح الخلفي'],zh:'打开后窗',py:'dǎkāi hòuchuāng',cat:'WINDOWS'},
+  {id:16,en:'Open sunroof',ar:['افتح فتحة السقف','افتح السقف','افتح السطح'],zh:'打开天窗',py:'dǎkāi tiānchuāng',cat:'WINDOWS'},
+  {id:17,en:'Close sunroof',ar:['اقفل فتحة السقف','اقفل السقف','اقفل السطح'],zh:'关闭天窗',py:'guānbì tiānchuāng',cat:'WINDOWS'},
+  {id:41,en:'Fold mirrors',ar:['ضم المرايات','طي المرايات','اطوي المرايات'],zh:'折叠后视镜',py:'zhédié hòushìjìng',cat:'WINDOWS',special:true},
+  {id:42,en:'Unfold mirrors',ar:['افتح المرايات','فرد المرايات','استعادة المرايات'],zh:'展开后视镜',py:'zhǎnkāi hòushìjìng',cat:'WINDOWS',special:true},
+  {id:43,en:'Window half open',ar:['نص شباك','نص النافذة'],zh:'车窗半开',py:'chēchuāng bàn kāi',cat:'WINDOWS'},
+
+  // ── MEDIA ──
+  {id:18,en:'Volume up',ar:['ارفع الصوت','زود الصوت'],zh:'增大音量',py:'zēngdà yīnliàng',cat:'MEDIA'},
+  {id:19,en:'Volume down',ar:['خفض الصوت','قلل الصوت','هادي الصوت'],zh:'降低音量',py:'jiàng dī yīnliàng',cat:'MEDIA'},
+  {id:20,en:'Mute',ar:['بلاش صوت','اصمت','اكتم الصوت'],zh:'静音',py:'jìngyīn',cat:'MEDIA'},
+  {id:21,en:'Next track',ar:['الأغنية الجاية','غير الأغنية','التالية'],zh:'下一首',py:'xià yī shǒu',cat:'MEDIA'},
+  {id:22,en:'Previous track',ar:['الأغنية اللي فاتت','رجع الأغنية','السابقة'],zh:'上一首',py:'shàng yī shǒu',cat:'MEDIA'},
+  {id:23,en:'Play music',ar:['شغل موسيقى','شغل الاغاني','تشغيل'],zh:'播放音乐',py:'bòfàng yīnyuè',cat:'MEDIA'},
+  {id:24,en:'Pause music',ar:['وقف الموسيقى','باوز','ايقاف'],zh:'暂停音乐',py:'zàntíng yīnyuè',cat:'MEDIA'},
+  {id:44,en:'Radio on',ar:['شغل الراديو','فتح الراديو'],zh:'打开收音机',py:'dǎkāi shōuyīnjī',cat:'MEDIA'},
+
+  // ── NAV ──
+  {id:25,en:'Show navigation',ar:['فتح الخريطة','فتح الناف','الخريطة'],zh:'显示导航',py:'xiǎnshì dǎoháng',cat:'NAV'},
+  {id:26,en:'Navigate home',ar:['روح البيت','طريق البيت','للبيت'],zh:'回家',py:'huíjiā',cat:'NAV'},
+  {id:27,en:'Find gas station',ar:['ابحث عن بنزينة','فين البنزينة','محطة وقود'],zh:'找加油站',py:'zhǎo jiāyóuzhàn',cat:'NAV'},
+  {id:28,en:'Find charging station',ar:['ابحث عن شحن','محطة شحن','فين شحن'],zh:'找充电站',py:'zhǎo chōngdiànzhàn',cat:'NAV'},
+
+  // ── VEHICLE ──
+  {id:29,en:'Check battery',ar:['كام شحن','الشحن كام','باقي كام'],zh:'查看电量',py:'chákàn diànliàng',cat:'VEHICLE'},
+  {id:30,en:'Start charging',ar:['ابدأ الشحن','شحن السيارة','اشحن'],zh:'开始充电',py:'kāishǐ chōngdiàn',cat:'VEHICLE'},
+  {id:31,en:'Stop charging',ar:['وقف الشحن','ايقاف الشحن'],zh:'停止充电',py:'tíngzhǐ chōngdiàn',cat:'VEHICLE'},
+  {id:32,en:'Open trunk',ar:['افتح الشنطة','افتح الخزينة','الشنطة'],zh:'打开后备箱',py:'dǎkāi hòubèixiāng',cat:'VEHICLE'},
+  {id:33,en:'Lock doors',ar:['اقفل الأبواب','لوك','اقفل السيارة'],zh:'锁门',py:'suǒmén',cat:'VEHICLE'},
+  {id:34,en:'Unlock doors',ar:['افتح الأبواب','فتح القفل','افتح السيارة'],zh:'开门',py:'kāimén',cat:'VEHICLE'},
+  {id:45,en:'Open hood',ar:['افتح الكبوت','الكبوت'],zh:'打开引擎盖',py:'dǎkāi yǐnqínggài',cat:'VEHICLE',special:true},
+  {id:46,en:'Hazard lights on',ar:['شغل الهازارد','الخطر','هازارد'],zh:'打开双闪',py:'dǎkāi shuāngshǎn',cat:'VEHICLE',special:true},
+  {id:47,en:'Hazard lights off',ar:['اقفل الهازارد','وقف الهازارد'],zh:'关闭双闪',py:'guānbì shuāngshǎn',cat:'VEHICLE',special:true},
+
+  // ── SYSTEM ──
+  {id:35,en:'Home screen',ar:['الصفحة الرئيسية','الهوم','ارجع للمين'],zh:'返回主界面',py:'fǎnhuí zhǔ jièmiàn',cat:'SYSTEM'},
+  {id:36,en:'Bluetooth on',ar:['فتح البلوتوث','شغل البلوتوث'],zh:'打开蓝牙',py:'dǎkāi lányá',cat:'SYSTEM'},
+  {id:37,en:'Bluetooth off',ar:['اقفل البلوتوث'],zh:'关闭蓝牙',py:'guānbì lányá',cat:'SYSTEM'},
+  {id:38,en:'WiFi on',ar:['فتح الواي فاي','شغل النت'],zh:'打开无线网络',py:'dǎkāi wúxiàn wǎngluò',cat:'SYSTEM'},
+  {id:48,en:'Answer in English',ar:['رد بالانجليزي','كلمني انجليزي'],zh:'用英语回答',py:'yòng yīngyǔ huídá',cat:'SYSTEM',special:true},
+  {id:49,en:'Open CarPlay',ar:['كار بلاي','افتح كار بلاي'],zh:'打开CarPlay',py:'dǎkāi CarPlay',cat:'SYSTEM',special:true},
+  {id:50,en:'Open Android Auto',ar:['اندرويد اوتو','افتح اندرويد اوتو'],zh:'打开Android Auto',py:'dǎkāi Android Auto',cat:'SYSTEM',special:true},
+  {id:51,en:'Screen off',ar:['اطفي الشاشة','اقفل الشاشة'],zh:'关闭屏幕',py:'guānbì píngmù',cat:'SYSTEM'},
+];
+
+const CASUAL=[
+  {t:['ازيك','عامل ايه','اخبارك','عاملة ايه','حالك ايه'],r:'أنا كويسة زي الفل! 😊 وانت عامل ايه؟'},
+  {t:['صباح الخير','صبح النور'],r:'صباح النور يا فندم ☀️ يارب يومك حلو!'},
+  {t:['مساء الخير','مسا النور'],r:'مساء الفل! 🌙 عامل ايه انهارده؟'},
+  {t:['انت مين','اسمك ايه'],r:'أنا BYD Voice Bridge، مساعدك الذكي 🚗'},
+  {t:['شكرا','مشكور','تسلم'],r:'العفو! في أمر تاني؟ 😊'},
+  {t:['تعبان','زهقت'],r:'متزهقش! أنا هنا دايما معاك 💙'},
+];
+
+const CATS=['ALL','WAKE','CLIMATE','WINDOWS','MEDIA','NAV','VEHICLE','SYSTEM'];
+let activeCat='ALL', lastCmd=null;
+let listening=false, micGranted=false;
+let recSec=0, recTimer=null;
+let noiseTimer=null, waveId=null, chatTimer=null;
+let audioCtx=null, analyser=null, micStream=null;
+const Android=window.Android||null;
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+(function init(){
+  const nb=document.getElementById('nb');
+  for(let i=0;i<14;i++){const b=document.createElement('div');b.className='nb';b.id='n'+i;b.style.height='2px';nb.appendChild(b);}
+  buildCats();renderCmds();
+  idleNoise();checkNet();
+  window.addEventListener('online',checkNet);
+  window.addEventListener('offline',checkNet);
+  // Check mic
+  if(navigator.permissions){
+    navigator.permissions.query({name:'microphone'}).then(r=>{
+      if(r.state==='granted')grantMic();
+      else document.getElementById('mpbar').classList.add('show');
+      r.onchange=()=>{if(r.state==='granted')grantMic();};
+    }).catch(()=>document.getElementById('mpbar').classList.add('show'));
+  } else {
+    if(Android)grantMic();
+    else document.getElementById('mpbar').classList.add('show');
+  }
+})();
+
+function checkNet(){
+  const p=document.getElementById('netPill');
+  p.textContent=navigator.onLine?'ONLINE':'OFFLINE';
+  p.className=navigator.onLine?'pill ok':'pill mu';
+}
+
+// ════════════════════════════════════════
+//  MIC GRANT
+// ════════════════════════════════════════
+async function grantMic(){
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    });
+    micGranted=true;
+    document.getElementById('mpbar').classList.remove('show');
+    document.getElementById('micPill').textContent='MIC ✓';
+    document.getElementById('micPill').className='pill ok';
+    setupAnalyser();drawWave();
+    startWakeLoop();
+  }catch(e){
+    document.getElementById('mptxt').textContent='⚠ MIC DENIED — USE MANUAL COMMANDS';
+    document.getElementById('micPill').textContent='MIC ✗';
+    document.getElementById('micPill').className='pill no';
+  }
+}
+
+function setupAnalyser(){
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser();analyser.fftSize=512;
+    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+    clearInterval(noiseTimer);liveNoise();
+  }catch(e){idleNoise();}
+}
+
+// ════════════════════════════════════════
+//  NOISE METERS
+// ════════════════════════════════════════
+function idleNoise(){
+  clearInterval(noiseTimer);
+  noiseTimer=setInterval(()=>{
+    document.getElementById('ndb').textContent=Math.floor(Math.random()*8+3)+'dB';
+    for(let i=0;i<14;i++){
+      const h=Math.random()*3+1;
+      document.getElementById('n'+i).style.height=Math.round(h)+'px';
+      document.getElementById('n'+i).className='nb';
+    }
+  },700);
+}
+function liveNoise(){
+  clearInterval(noiseTimer);
+  const data=new Uint8Array(analyser.frequencyBinCount);
+  noiseTimer=setInterval(()=>{
+    analyser.getByteFrequencyData(data);
+    const avg=data.slice(0,60).reduce((a,b)=>a+b,0)/60;
+    const db=Math.round(20*Math.log10((avg||1)/255)+90);
+    document.getElementById('ndb').textContent=Math.max(0,db)+'dB';
+    for(let i=0;i<14;i++){
+      const h=Math.min(14,(data[i*3]||0)/16+1);
+      const b=document.getElementById('n'+i);
+      b.style.height=Math.round(h)+'px';
+      b.className='nb'+(h>7?' lit':'');
+    }
+  },100);
+}
+
+// ════════════════════════════════════════
+//  WAVEFORM
+// ════════════════════════════════════════
+function drawWave(){
+  if(!analyser)return;
+  const canvas=document.getElementById('wc');
+  const ctx=canvas.getContext('2d');
+  canvas.width=canvas.offsetWidth||260;
+  const W=canvas.width,H=30;
+  const data=new Uint8Array(analyser.fftSize);
+  function frame(){
+    analyser.getByteTimeDomainData(data);
+    ctx.clearRect(0,0,W,H);
+    ctx.beginPath();
+    ctx.strokeStyle=listening?'#00e5ff':'#0097a7';
+    ctx.lineWidth=1.5;
+    const step=W/data.length;
+    for(let i=0;i<data.length;i++){
+      const v=data[i]/128-1,y=H/2+v*(H/2-3);
+      i===0?ctx.moveTo(0,y):ctx.lineTo(i*step,y);
+    }
+    ctx.stroke();
+    waveId=requestAnimationFrame(frame);
+  }
+  if(waveId)cancelAnimationFrame(waveId);
+  frame();
+}
+
+// ════════════════════════════════════════
+//  WAKE WORD LOOP — continuous background
+//  Listens for: Hi BYD / Hey BYD / BYD / بيد / هاي بيد
+//  Auto-activates mic without button press
+// ════════════════════════════════════════
+function isWakePhrase(tr){
+  const t=tr.toLowerCase();
+  return t.includes('hi byd')||t.includes('hey byd')||t.includes('hei byd')||
+         t.includes('hi b y d')||t.includes('هاي بيد')||t.includes('هاي بي واي دي')||
+         t.includes('بيد')||t.includes('باي دي')||t.includes('byd');
+}
+
+function setWakeState(state){
+  // state: 'armed' | 'listening' | 'active'
+  const ind=document.getElementById('wakeInd');
+  const wk=document.getElementById('wkStat');
+  const hb=document.getElementById('hb');
+  const mo=document.getElementById('mo');
+  ind.className='wake-ind '+state;
+  if(state==='armed'){
+    document.getElementById('wakeLbl').textContent='Hi BYD · ARMED';
+    wk.className='wake-status armed';wk.textContent='Hi BYD · ARMED';
+    hb.classList.remove('wake-rdy');mo.classList.remove('wake');
+  } else if(state==='listening'){
+    document.getElementById('wakeLbl').textContent='LISTENING...';
+    wk.className='wake-status listening';wk.textContent='🎙️ LISTENING...';
+    hb.classList.add('wake-rdy');mo.classList.add('wake');
+  } else if(state==='active'){
+    document.getElementById('wakeLbl').textContent='ACTIVE';
+    wk.className='wake-status active';wk.textContent='✓ Hi BYD HEARD';
+  }
+  document.getElementById('botStatus').textContent=state.toUpperCase();
+}
+
+function startWakeLoop(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR||!micGranted)return;
+  function loop(){
+    if(listening)return;
+    setWakeState('armed');
+    const r=new SR();
+    // Use both languages simultaneously by trying both locales
+    r.lang='ar-EG'; // Primary — Arabic Egyptian
+    r.interimResults=false;r.continuous=false;r.maxAlternatives=5;
+    r.onresult=(e)=>{
+      let triggered=false;
+      for(let i=0;i<e.results.length;i++){
+        // Check all alternatives
+        for(let j=0;j<e.results[i].length;j++){
+          const tr=e.results[i][j].transcript;
+          if(isWakePhrase(tr)){
+            setWakeState('active');
+            // Execute wake command (plays Chinese greeting)
+            const wakeCmd=DB.find(c=>c.id===0);
+            if(wakeCmd)execCmd(wakeCmd);
+            // Then immediately start listening for the real command
+            setTimeout(()=>{if(!listening)startListen();},1200);
+            triggered=true;break;
+          }
+          if(!triggered){
+            if(checkCasual(tr.toLowerCase()))return;
+            const m=fuzzy(tr);
+            if(m&&m.c>55){execCmd(m.cmd);triggered=true;break;}
+          }
+        }
+        if(triggered)break;
+      }
+    };
+    r.onend=()=>{if(!listening)setTimeout(loop,500);};
+    r.onerror=(ev)=>{
+      const skip=['no-speech','aborted','network'];
+      if(!skip.includes(ev.error))console.warn('wake:',ev.error);
+      if(!listening)setTimeout(loop,1200);
+    };
+    try{r.start();}catch(e){setTimeout(loop,2000);}
+  }
+  loop();
+}
+
+// ════════════════════════════════════════
+//  MANUAL LISTEN (button)
+// ════════════════════════════════════════
+function toggleListen(){
+  if(!micGranted){grantMic();return;}
+  if(listening){stopListen();return;}
+  startListen();
+}
+
+function startListen(){
+  if(listening)return;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){setDisp('NOT SUPPORTED','Use commands below','—','',0);return;}
+  const r=new SR();
+  r.lang='ar-EG'; // Works for both Arabic and English in most Android
+  r.interimResults=true;r.continuous=false;r.maxAlternatives=5;
+  r.onstart=()=>{
+    listening=true;
+    document.getElementById('mo').classList.add('act');
+    document.getElementById('hb').classList.add('lst');
+    document.getElementById('mhint').textContent='🎙️ LISTENING...';
+    document.getElementById('rb').classList.add('show');
+    setMicColor('#00e5ff');setFreq(true);
+    recSec=0;clearInterval(recTimer);
+    recTimer=setInterval(()=>{recSec++;const s=recSec%60,m=Math.floor(recSec/60);document.getElementById('rt').textContent=m+':'+(s<10?'0':'')+s;},1000);
+    setDisp('LISTENING · بسمعك','...','','',0);
+    setWakeState('listening');
+  };
+  r.onresult=(e)=>{
+    const tr=Array.from(e.results).map(x=>x[0].transcript).join(' ');
+    const cf=e.results[e.results.length-1][0].confidence||0.6;
+    const pct=Math.round(cf*100);
+    document.getElementById('srout').textContent=tr;
+    document.getElementById('cf').style.width=pct+'%';
+    document.getElementById('cp').textContent=pct+'%';
+    if(checkCasual(tr.toLowerCase())){stopListen();return;}
+    if(pct>=45){const m=fuzzy(tr);if(m&&m.c>40){stopListen();execCmd(m.cmd);}}
+  };
+  r.onerror=(ev)=>{
+    if(!['no-speech','aborted'].includes(ev.error)){
+      document.getElementById('hb').classList.add('er');
+      setDisp('ERROR: '+ev.error,'Try again or use list','—','',0);
+      setTimeout(()=>document.getElementById('hb').classList.remove('er'),2000);
+    }
+    stopListen();
+  };
+  r.onend=()=>stopListen();
+  window._rec=r;
+  try{r.start();}catch(e){stopListen();}
+}
+
+function stopListen(){
+  listening=false;
+  if(window._rec){try{window._rec.stop();}catch(e){}window._rec=null;}
+  clearInterval(recTimer);
+  document.getElementById('rb').classList.remove('show');
+  document.getElementById('mo').classList.remove('act');
+  document.getElementById('hb').classList.remove('lst');
+  document.getElementById('mhint').textContent='TAP · or say Hi BYD';
+  setMicColor('#4a7a99');setFreq(false);
+  if(document.getElementById('dtag').textContent.includes('LISTENING'))
+    setDisp('READY · جاهز','—','BYD','bèi yǎ dí',0);
+  if(micGranted)setTimeout(startWakeLoop,600);
+}
+
+// ════════════════════════════════════════
+//  EXECUTE COMMAND
+// ════════════════════════════════════════
+function execCmd(cmd){
+  lastCmd=cmd;
+  const label=cmd.ar&&cmd.ar.length?cmd.ar[0]:cmd.en;
+  setDisp('EXECUTING · تنفيذ',label,cmd.zh,cmd.py,97);
+  document.getElementById('hb').classList.add('ok2');
+  document.getElementById('botStatus').textContent='EXECUTING';
+  renderCmds();
+  speakChinese(cmd.zh);
+  if(Android&&Android.vibrate)Android.vibrate(60);
+  setTimeout(()=>{
+    document.getElementById('hb').classList.remove('ok2');
+    setDisp('DONE ✓ · تم',label,cmd.zh,cmd.py,97);
+    document.getElementById('botStatus').textContent='DONE';
+  },2000);
+}
+
+// ════════════════════════════════════════
+//  TTS
+// ════════════════════════════════════════
+function speakChinese(text){
+  if(Android&&Android.speak){Android.speak(text,'zh-CN',1.0,0.85);return;}
+  if(window.speechSynthesis){
+    window.speechSynthesis.cancel();
+    setTimeout(()=>{
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='zh-CN';u.rate=0.82;u.pitch=1;u.volume=1;
+      const vx=window.speechSynthesis.getVoices().find(v=>v.lang&&v.lang.startsWith('zh'));
+      if(vx)u.voice=vx;
+      window.speechSynthesis.speak(u);
+    },60);
+    return;
+  }
+  beep(700,0.12);
+}
+function beep(freq,dur){
+  try{
+    const ac=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);o.frequency.value=freq;
+    g.gain.setValueAtTime(0.2,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start();o.stop(ac.currentTime+dur+0.01);
+  }catch(e){}
+}
+
+// ════════════════════════════════════════
+//  FUZZY MATCH
+// ════════════════════════════════════════
+function fuzzy(text){
+  const t=text.toLowerCase().trim();
+  let best=null,bestSc=0;
+  DB.forEach(cmd=>{
+    const phrases=[cmd.en.toLowerCase(),...(cmd.ar||[])];
+    phrases.forEach(ph=>{
+      const pl=ph.toLowerCase();
+      if(t.includes(pl)||pl.includes(t)){if(0.92>bestSc){bestSc=0.92;best=cmd;}return;}
+      const pw=pl.split(/\s+/),tw=t.split(/\s+/);
+      let hits=0;
+      pw.forEach(p=>tw.forEach(w=>{if(p.length>1&&w.length>1&&(p.includes(w)||w.includes(p)))hits++;}));
+      const sc=hits/Math.max(pw.length,1);
+      if(sc>bestSc){bestSc=sc;best=cmd;}
+    });
+  });
+  return bestSc>0.28?{cmd:best,c:Math.round(bestSc*100)}:null;
+}
+
+// ════════════════════════════════════════
+//  CASUAL CHAT
+// ════════════════════════════════════════
+function checkCasual(t){
+  for(const g of CASUAL){
+    if(g.t.some(tr=>t.includes(tr))){
+      showChat(g.r);setDisp('CHAT · دردشة',g.r,'💬','',0);return true;
+    }
+  }
+  return false;
+}
+function showChat(msg){
+  clearTimeout(chatTimer);
+  const b=document.getElementById('chat');
+  b.textContent=msg;b.classList.add('show');
+  chatTimer=setTimeout(()=>b.classList.remove('show'),4500);
+}
+
+// ════════════════════════════════════════
+//  DISPLAY
+// ════════════════════════════════════════
+function setDisp(tag,src,zh,py,conf){
+  document.getElementById('dtag').textContent=tag;
+  document.getElementById('srout').textContent=src;
+  document.getElementById('zhout').textContent=zh||'BYD';
+  document.getElementById('pyout').textContent=py||'';
+  document.getElementById('cf').style.width=conf+'%';
+  document.getElementById('cp').textContent=conf?conf+'%':'—';
+  // Update rstrip status
+  document.getElementById('rstrip')&&(document.querySelector('.rstatus').innerHTML=tag+' &nbsp;|&nbsp; <span id="cmdCount">'+DB.length+'</span> COMMANDS');
+}
+function setMicColor(c){['mb','ma','ml','mba','f1','f2','f3'].forEach(id=>{const e=document.getElementById(id);if(e)e.setAttribute('stroke',c);});}
+function setFreq(on){const b=['f1','f2','f3'],y=['7','4','8'];b.forEach((id,i)=>{const e=document.getElementById(id);if(!e)return;e.setAttribute('y2',on?y[i]:'10');e.setAttribute('opacity',on?'1':'0.4');});}
+
+// ════════════════════════════════════════
+//  CATS & COMMANDS
+// ════════════════════════════════════════
+function buildCats(){
+  const el=document.getElementById('cats');el.innerHTML='';
+  CATS.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='catbtn'+(c===activeCat?' on':'');
+    b.textContent=c;
+    b.onclick=()=>{activeCat=c;buildCats();renderCmds();};
+    el.appendChild(b);
+  });
+}
+function renderCmds(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const list=DB.filter(c=>{
+    const mc=activeCat==='ALL'||c.cat===activeCat;
+    const mq=!q||c.en.toLowerCase().includes(q)||c.zh.includes(q)||(c.ar||[]).join(' ').includes(q);
+    return mc&&mq;
+  });
+  document.getElementById('cmdCount').textContent=list.length;
+  const el=document.getElementById('cmds');el.innerHTML='';
+  list.forEach(c=>{
+    const d=document.createElement('div');
+    let cls='cmd';
+    if(c.isWake)cls+=' wake-cmd';
+    else if(c.special)cls+=' special';
+    if(lastCmd&&lastCmd.id===c.id)cls+=' done';
+    const ar=(c.ar&&c.ar.length)?c.ar[0]:'';
+    d.className=cls;
+    d.innerHTML=`
+      <div class="cen">${c.en}</div>
+      ${ar?`<div class="car">${ar}</div>`:''}
+      <div class="ccat">${c.cat}</div>
+      <div class="czh">${c.zh}</div>`;
+    d.onclick=()=>execCmd(c);
+    el.appendChild(d);
+  });
+}
+</script>
+</body>
+</html>
