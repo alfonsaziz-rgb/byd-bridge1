@@ -364,6 +364,10 @@ function loop(){
     setStatus('listening','👂 يستمع · Say BYD...');
   }
 
+  // Don't start SR if TTS is currently speaking
+  if(window.speechSynthesis&&window.speechSynthesis.speaking){
+    if(running)setTimeout(loop,200);return;
+  }
   r.onresult=function(e){
     var interim='',final_tr='',cf=0;
     for(var i=0;i<e.results.length;i++){
@@ -378,9 +382,11 @@ function loop(){
     if(!waiting4cmd&&isWake(heard)){
       waiting4cmd=true;
       try{r.abort();}catch(x){}
-      speakZH('你好，小迪');
-      setResult('WAKE · استيقاظ','قول الأمر الآن · Say command now','你好，小迪','nǐ hǎo xiǎo dí');
-      setTimeout(function(){if(running)loop();},1000);
+      if(curR){try{curR.abort();}catch(e){}curR=null;}
+      speakZHthen('你好，小迪',function(){
+        setResult('WAKE · استيقاظ','قول الأمر الآن · Say command now','你好，小迪','nǐ hǎo xiǎo dí');
+        if(running)loop();
+      });
       return;
     }
 
@@ -409,9 +415,11 @@ function loop(){
       if(!waiting4cmd&&isWake(final_tr)){
         waiting4cmd=true;
         try{r.abort();}catch(x){}
-        speakZH('你好，小迪');
-        setResult('WAKE','قول الأمر الآن','你好，小迪','nǐ hǎo xiǎo dí');
-        setTimeout(function(){if(running)loop();},1000);
+        if(curR){try{curR.abort();}catch(e){}curR=null;}
+        speakZHthen('你好，小迪',function(){
+          setResult('WAKE','قول الأمر الآن','你好，小迪','nǐ hǎo xiǎo dí');
+          if(running)loop();
+        });
         return;
       }
       // No match — if we were waiting for command, reset
@@ -493,11 +501,19 @@ function execCmd(cmd){
   var lb=(lang!=='en'&&cmd.ar&&cmd.ar.length)?cmd.ar[0]:cmd.en;
   setResult('EXECUTING · تنفيذ ✓',lb,cmd.zh,cmd.py);
   setStatus('speaking','🔊 '+lb);
-  rndr();speakZH(cmd.zh);toast(cmd.zh+'  ·  '+lb);
-  setTimeout(function(){
+  rndr();
+  toast(cmd.zh+'  ·  '+lb);
+  // Stop SR before speaking to prevent conflict
+  if(curR){try{curR.abort();}catch(e){}curR=null;}
+  speakZHthen(cmd.zh, function(){
+    // Restart loop ONLY after TTS finishes
     setResult('DONE ✓ · تم',lb,cmd.zh,cmd.py);
-    if(running)setStatus('listening','👂 يستمع · Say BYD...');
-  },1800);
+    waiting4cmd=false;
+    if(running){
+      setStatus('listening','👂 يستمع · Say BYD...');
+      setTimeout(loop,300);
+    }
+  });
 }
 
 /* ════ CASUAL ════ */
@@ -512,10 +528,15 @@ function casual(t){
 }
 
 /* ════ TTS ════ */
-function speakZH(txt){
-  if(And&&And.speak){try{And.speak(txt,'zh-CN',1.0,0.88);setT('APK');return;}catch(e){}}
+function speakZH(txt){speakZHthen(txt,null);}
+function speakZHthen(txt,cb){
+  if(And&&And.speak){
+    try{And.speak(txt,'zh-CN',1.0,0.88);setT('APK');if(cb)setTimeout(cb,1500);return;}catch(e){}
+  }
   if(window.speechSynthesis){
     window.speechSynthesis.cancel();
+    var done=false;
+    var finish=function(){if(!done){done=true;if(cb)cb();}};
     var doIt=function(){
       var vs=window.speechSynthesis.getVoices(),zh=null;
       for(var i=0;i<vs.length;i++){if(vs[i].lang&&vs[i].lang.indexOf('zh')===0){zh=vs[i];break;}}
@@ -523,14 +544,20 @@ function speakZH(txt){
       u.lang='zh-CN';u.rate=0.85;u.pitch=1.0;u.volume=1.0;
       if(zh)u.voice=zh;
       u.onstart=function(){setT('SYN');};
-      u.onerror=function(ev){if(ev.error!=='interrupted')gTTS(txt);};
+      u.onend=function(){finish();};
+      u.onerror=function(ev){
+        if(ev.error!=='interrupted'){gTTS(txt);setTimeout(finish,2000);}
+        else finish();
+      };
       window.speechSynthesis.speak(u);
+      // Safety timeout in case onend never fires (Android WebView bug)
+      setTimeout(finish,4000);
     };
     if(window.speechSynthesis.getVoices().length>0)doIt();
-    else{window.speechSynthesis.onvoiceschanged=doIt;setTimeout(doIt,400);}
+    else{window.speechSynthesis.onvoiceschanged=doIt;setTimeout(doIt,300);}
     return;
   }
-  gTTS(txt);
+  gTTS(txt);if(cb)setTimeout(cb,2000);
 }
 function gTTS(txt){
   if(!navigator.onLine){setT('—');return;}
