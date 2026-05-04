@@ -1,566 +1,524 @@
-<!DOCTYPE html>
+import { useState, useEffect, useRef, useCallback } from “react”;
+import { motion, AnimatePresence } from “framer-motion”;
 
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#06090f">
-<title>BYD Voice Bridge</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+SC:wght@700&family=Noto+Sans+Arabic:wght@500;700&family=Exo+2:wght@500;600&display=swap');
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-:root{--c:#00e5ff;--c2:#006880;--cg:rgba(0,229,255,.1);--bg:#06090f;--bg2:#0a1520;--bg3:#0d1c2b;--t:#cce6ff;--m:#4a7090;--b:rgba(0,229,255,.14);--ok:#00e07a;--err:#ff3355;--warn:#ffaa00;--ar:#7dd8ff;--en:#a0c8e0;}
-html,body{height:100%;overflow:hidden;background:var(--bg);}
-body{font-family:'Exo 2',sans-serif;color:var(--t);display:flex;flex-direction:column;}
-.top{background:var(--bg2);border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.brand{display:flex;align-items:center;gap:9px;}
-.bico{width:28px;height:28px;border:1.5px solid var(--c);border-radius:7px;display:flex;align-items:center;justify-content:center;background:var(--cg);}
-.bname{color:var(--c);font-size:11px;letter-spacing:2px;font-family:'IBM Plex Mono',monospace;}
-.bsub{color:var(--m);font-size:7px;letter-spacing:1px;font-family:'IBM Plex Mono',monospace;}
-.pills{display:flex;gap:4px;align-items:center;}
-.pi{font-size:7px;padding:2px 6px;border-radius:3px;border:1px solid;letter-spacing:.5px;font-family:'IBM Plex Mono',monospace;}
-.pi.ok{border-color:var(--ok);color:var(--ok);}
-.pi.cy{border-color:var(--c);color:var(--c);}
-.pi.mu{border-color:var(--m);color:var(--m);}
-.pi.no{border-color:var(--err);color:var(--err);}
-.pi.wa{border-color:var(--warn);color:var(--warn);}
-.sbar{display:flex;align-items:center;gap:8px;padding:7px 14px;background:var(--bg3);border-bottom:1px solid var(--b);flex-shrink:0;}
-.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s;}
-.sdot.armed{background:var(--ok);animation:dp 2s ease-in-out infinite;}
-.sdot.go{background:var(--c);animation:dp .6s ease-in-out infinite;}
-.sdot.say{background:var(--warn);animation:none;}
-.sdot.off{background:var(--m);animation:none;}
-@keyframes dp{0%,100%{opacity:1;}50%{opacity:.2;}}
-.stxt{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.5px;flex:1;color:var(--m);}
-.stxt.armed{color:var(--ok);}
-.stxt.go{color:var(--c);}
-.stxt.say{color:var(--warn);}
-.sbtn{background:transparent;border:1px solid var(--b);color:var(--m);border-radius:4px;padding:3px 10px;font-size:8px;font-family:'IBM Plex Mono',monospace;cursor:pointer;touch-action:manipulation;}
-.sbtn:active{border-color:var(--c);color:var(--c);}
-.res{padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--b);flex-shrink:0;}
-.rlbl{font-size:7px;letter-spacing:1.5px;color:var(--m);font-family:'IBM Plex Mono',monospace;margin-bottom:3px;}
-.rtext{font-family:'Noto Sans Arabic',sans-serif;font-size:12px;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:17px;}
-.rzh{font-family:'Noto Sans SC',sans-serif;font-size:24px;font-weight:700;color:var(--c);min-height:30px;line-height:1.1;}
-.rpy{font-size:7px;color:var(--m);font-family:'IBM Plex Mono',monospace;min-height:11px;}
-.langbar{display:flex;border-bottom:1px solid var(--b);flex-shrink:0;background:var(--bg2);}
-.lb{flex:1;padding:5px 0;border:none;background:transparent;color:var(--m);font-size:9px;font-family:'IBM Plex Mono',monospace;cursor:pointer;letter-spacing:1px;border-bottom:2px solid transparent;touch-action:manipulation;}
-.lb.on{color:var(--c);border-bottom-color:var(--c);background:var(--cg);}
-.panel{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
-.ph{display:flex;align-items:center;justify-content:space-between;padding:5px 14px 2px;flex-shrink:0;}
-.ptitle{font-size:7px;letter-spacing:2px;color:var(--m);font-family:'IBM Plex Mono',monospace;}
-.pcnt{font-size:7px;color:var(--c);font-family:'IBM Plex Mono',monospace;}
-.cats{display:flex;gap:4px;padding:3px 14px;overflow-x:auto;flex-shrink:0;-webkit-overflow-scrolling:touch;}
-.cats::-webkit-scrollbar{display:none;}
-.cb{font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid var(--b);background:transparent;color:var(--m);cursor:pointer;white-space:nowrap;font-family:'IBM Plex Mono',monospace;touch-action:manipulation;}
-.cb.on{border-color:var(--c);color:var(--c);background:var(--cg);}
-.srch{margin:3px 14px;background:var(--bg3);border:1px solid var(--b);border-radius:5px;padding:5px 10px;color:var(--t);font-size:13px;font-family:'Exo 2',sans-serif;outline:none;display:block;width:calc(100% - 28px);}
-.srch::placeholder{color:var(--m);}
-.srch:focus{border-color:var(--c);}
-.cmdlist{flex:1;min-height:0;overflow-y:auto;padding:3px 14px 14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
-.cmdlist::-webkit-scrollbar{width:2px;}
-.cmdlist::-webkit-scrollbar-thumb{background:var(--b);}
-.cmd{display:flex;align-items:center;gap:9px;padding:9px 10px;margin-bottom:4px;background:var(--bg2);border:1px solid var(--b);border-radius:8px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:border-color .1s;touch-action:manipulation;}
-.cmd:active{border-color:var(--c);background:var(--cg);}
-.cmd.done{border-color:var(--ok);}
-.cmd.wkc{border-color:rgba(0,229,255,.3);background:var(--cg);}
-.ci{flex:1;min-width:0;}
-.ar{font-family:'Noto Sans Arabic',sans-serif;font-size:14px;font-weight:700;color:var(--ar);direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.en{font-family:'Exo 2',sans-serif;font-size:11px;font-weight:600;color:var(--en);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ccat{font-size:6px;color:var(--m);letter-spacing:1px;opacity:.5;font-family:'IBM Plex Mono',monospace;}
-.czh{font-family:'Noto Sans SC',sans-serif;font-size:20px;color:var(--c);flex-shrink:0;min-width:50px;text-align:left;line-height:1;}
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(6px);background:var(--bg2);border:1px solid var(--c);border-radius:10px;padding:6px 16px;font-size:13px;color:var(--c);font-family:'Noto Sans Arabic',sans-serif;opacity:0;transition:all .2s;pointer-events:none;z-index:999;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
-.bot{display:flex;align-items:center;justify-content:space-between;padding:3px 14px;border-top:1px solid var(--b);background:var(--bg2);font-size:7px;color:var(--m);flex-shrink:0;font-family:'IBM Plex Mono',monospace;}
-</style>
-</head>
-<body>
-
-<div class="top">
-  <div class="brand">
-    <div class="bico">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L21 7V17L12 22L3 17V7L12 2Z" stroke="#00e5ff" stroke-width="1.5"/>
-        <rect x="9" y="5" width="6" height="9" rx="3" stroke="#00e5ff" stroke-width="1.2"/>
-        <path d="M6 12C6 15.3 8.7 18 12 18C15.3 18 18 15.3 18 12" stroke="#00e5ff" stroke-width="1.2" stroke-linecap="round"/>
-      </svg>
-    </div>
-    <div><div class="bname">BYD VOICE BRIDGE</div><div class="bsub">AR+EN → ZH · DLINK</div></div>
-  </div>
-  <div class="pills">
-    <div class="pi cy">v12</div>
-    <div class="pi mu" id="mPill">MIC</div>
-    <div class="pi cy" id="tPill">TTS</div>
-  </div>
-</div>
-
-<div class="sbar">
-  <div class="sdot off" id="sdot"></div>
-  <span class="stxt off" id="stxt">جاري التشغيل...</span>
-  <button class="sbtn" id="sbtn" onclick="G.toggle()">START</button>
-</div>
-
-<div class="res">
-  <div class="rlbl" id="rlbl">WAITING · في انتظار الأمر</div>
-  <div class="rtext" id="rtext">قول أي أمر مباشرة · Say any command</div>
-  <div class="rzh"  id="rzh">你好，小迪</div>
-  <div class="rpy"  id="rpy">nǐ hǎo xiǎo dí</div>
-</div>
-
-<div class="langbar">
-  <button class="lb on" id="lA" onclick="G.lg('ar')">🇸🇦 عربي</button>
-  <button class="lb"    id="lE" onclick="G.lg('en')">🇬🇧 English</button>
-  <button class="lb"    id="lB" onclick="G.lg('both')">AR+EN</button>
-</div>
-
-<div class="panel">
-  <div class="ph">
-    <span class="ptitle">COMMANDS · الأوامر</span>
-    <span class="pcnt" id="cnt">0</span>
-  </div>
-  <div class="cats" id="cats"></div>
-  <input class="srch" id="srch" placeholder="ابحث · Search..." oninput="G.render()">
-  <div class="cmdlist" id="list"></div>
-</div>
-
-<div class="bot"><span>BYD VOICE BRIDGE v12</span><span id="bst">OFF</span></div>
-<div id="toast"></div>
-
-<script>
-var G = (function(){
-'use strict';
-
-/* ══════════════════════════════════════════════════
-   COMMANDS DATABASE
-   Each command has FULL phrases only — no bare words
-   No ambiguous single-word triggers
-══════════════════════════════════════════════════ */
-var DB = [
-  /* BYD greeting */
-  {id:0,  en:'BYD',                  ar:['BYD','بيد','بي واي دي','باي دي'],                              zh:'你好，小迪',  py:'nǐ hǎo xiǎo dí',                cat:'WAKE', wk:true},
-  /* WINDOWS — each pair clearly separated */
-  {id:16, en:'Open sunroof',         ar:['افتح فتحة السقف','افتح السقف','فتح السقف'],           zh:'打开天窗',   py:'dǎ kāi tiān chuāng',             cat:'WIN'},
-  {id:17, en:'Close sunroof',        ar:['اقفل فتحة السقف','اقفل السقف','سكر السقف','اكفل السقف'],           zh:'关闭天窗',   py:'guān bì tiān chuāng',            cat:'WIN'},
-  {id:12, en:'Open all windows',     ar:['افتح الشبابيك','افتح شبابيك','النوافذ'],          zh:'打开车窗',   py:'dǎ kāi chē chuāng',              cat:'WIN'},
-  {id:13, en:'Close all windows',    ar:['اقفل الشبابيك','سكر الشبابيك','اكفل الشبابيك'],          zh:'关闭车窗',   py:'guān bì chē chuāng',             cat:'WIN'},
-  {id:14, en:'Open front window',    ar:['افتح الشباك الامامي','فاتح الشباك الامامي','شباك الامام'],  zh:'打开前车窗', py:'dǎ kāi qián chē chuāng',          cat:'WIN'},
-  {id:53, en:'Close front window',   ar:['اقفل الشباك الامامي','سكر الشباك الامامي','اكفل الشباك الامامي'], zh:'关闭前车窗',py:'guān bì qián chē chuāng',     cat:'WIN'},
-  {id:15, en:'Open rear window',     ar:['افتح الشباك الخلفي','فاتح الشباك الخلفي','شباك الخلف'],   zh:'打开后车窗', py:'dǎ kāi hòu chē chuāng',           cat:'WIN'},
-  {id:54, en:'Close rear window',    ar:['اقفل الشباك الخلفي','سكر الشباك الخلفي','اكفل الشباك الخلفي'],zh:'关闭后车窗',py:'guān bì hòu chē chuāng',          cat:'WIN'},
-  {id:41, en:'Fold mirrors',         ar:['ضم المرايات','طي المرايات'],              zh:'收起后视镜', py:'shōu qǐ hòu shì jìng',            cat:'WIN'},
-  {id:42, en:'Unfold mirrors',       ar:['افتح المرايات','فرد المرايات'],           zh:'展开后视镜', py:'zhǎn kāi hòu shì jìng',           cat:'WIN'},
-  /* AC */
-  {id:1,  en:'Turn on AC',           ar:['شغل التكييف','اشغل التكييف','شغل تكييف'],           zh:'打开空调',   py:'dǎ kāi kōng tiáo',               cat:'AC'},
-  {id:2,  en:'Turn off AC',          ar:['اقفل التكييف','سكر التكييف','وقف التكييف'],            zh:'关闭空调',   py:'guān bì kōng tiáo',              cat:'AC'},
-  {id:10, en:'Max cooling',          ar:['برودة قصوى','اقصى برودة'],               zh:'最大制冷',   py:'zuì dà zhì lěng',                cat:'AC'},
-  {id:3,  en:'Temp up',              ar:['ارفع الحرارة','زود الحرارة'],            zh:'升高温度',   py:'shēng gāo wēn dù',               cat:'AC'},
-  {id:4,  en:'Temp down',            ar:['خفض الحرارة','برد شوية'],                zh:'降低温度',   py:'jiàng dī wēn dù',                cat:'AC'},
-  {id:5,  en:'Temp 16 · sixteen',    ar:['درجة 16','تمبريتشر 16','sixteen'],        zh:'温度16度',   py:'wēn dù shí liù dù',              cat:'AC'},
-  {id:6,  en:'Temp 18 · eighteen',   ar:['درجة 18','تمبريتشر 18','eighteen'],       zh:'温度18度',   py:'wēn dù shí bā dù',               cat:'AC'},
-  {id:7,  en:'Temp 20 · twenty',     ar:['درجة 20','عشرين','twenty'],               zh:'温度20度',   py:'wēn dù èr shí dù',               cat:'AC'},
-  {id:8,  en:'Temp 22 · twenty two', ar:['درجة 22','اتنين وعشرين','twenty two'],    zh:'温度22度',   py:'wēn dù èr shí èr dù',            cat:'AC'},
-  {id:9,  en:'Temp 24 · twenty four',ar:['درجة 24','اربعة وعشرين','twenty four'],   zh:'温度24度',   py:'wēn dù èr shí sì dù',            cat:'AC'},
-  {id:11, en:'Auto climate',         ar:['اوتو تكييف','تكييف اوتو'],               zh:'自动空调',   py:'zì dòng kōng tiáo',              cat:'AC'},
-  {id:39, en:'Fan up',               ar:['علي المروحة','زود المروحة'],              zh:'增加风速',   py:'zēng jiā fēng sù',               cat:'AC'},
-  {id:40, en:'Fan down',             ar:['وطي المروحة','قلل المروحة'],              zh:'降低风速',   py:'jiàng dī fēng sù',               cat:'AC'},
-  /* VEHICLE */
-  {id:32, en:'Open trunk',           ar:['افتح الشنطة','فتح الشنطة','الشنطة'],              zh:'打开后备箱', py:'dǎ kāi hòu bèi xiāng',            cat:'CAR'},
-  {id:52, en:'Close trunk',          ar:['اقفل الشنطة','سكر الشنطة','اكفل الشنطة'],              zh:'关闭后备箱', py:'guān bì hòu bèi xiāng',           cat:'CAR'},
-  {id:34, en:'Unlock doors',         ar:['افتح الأبواب','فتح الأبواب'],            zh:'解锁车门',   py:'jiě suǒ chē mén',                 cat:'CAR'},
-  {id:33, en:'Lock doors',           ar:['اقفل الأبواب','قفل الأبواب'],            zh:'锁车门',    py:'suǒ chē mén',                     cat:'CAR'},
-  /* LIGHTS */
-  {id:60, en:'Lights on',            ar:['شغل النور','فتح النور','النور'],          zh:'打开车内灯', py:'dǎ kāi chē nèi dēng',             cat:'LGT'},
-  {id:61, en:'Lights off',           ar:['اقفل النور','اطفي النور','سكر النور'],          zh:'关闭车内灯', py:'guān bì chē nèi dēng',            cat:'LGT'},
-  {id:62, en:'Ambient on',           ar:['شغل الامبيانت','فتح الامبيانت'],          zh:'打开氛围灯', py:'dǎ kāi fēn wéi dēng',             cat:'LGT'},
-  {id:63, en:'Ambient off',          ar:['اقفل الامبيانت','اطفي الامبيانت'],        zh:'关闭氛围灯', py:'guān bì fēn wéi dēng',            cat:'LGT'},
-  {id:64, en:'Daytime lights on',    ar:['شغل نور النهار'],                          zh:'打开日间灯', py:'dǎ kāi rì jiān dēng',             cat:'LGT'},
-  {id:65, en:'Daytime lights off',   ar:['اقفل نور النهار'],                         zh:'关闭日间灯', py:'guān bì rì jiān dēng',            cat:'LGT'},
-  /* DRIVE */
-  {id:70, en:'Normal mode',          ar:['مود عادي','وضع عادي'],                    zh:'普通模式',   py:'pǔ tōng mó shì',                 cat:'DRV'},
-  {id:71, en:'ECO mode',             ar:['مود ايكو','وضع ايكو'],                    zh:'经济模式',   py:'jīng jì mó shì',                 cat:'DRV'},
-  {id:72, en:'Sport mode',           ar:['مود سبورت','وضع سبورت'],                  zh:'运动模式',   py:'yùn dòng mó shì',                cat:'DRV'},
-  {id:73, en:'Snow mode',            ar:['مود ثلج','وضع ثلج'],                      zh:'雪地模式',   py:'xuě dì mó shì',                  cat:'DRV'},
-  {id:74, en:'Strong regen',         ar:['استرداد قوي','ريجن قوي'],                 zh:'强能量回收', py:'qiáng néng liàng huí shōu',       cat:'DRV'},
-  {id:75, en:'Weak regen',           ar:['استرداد ضعيف','ريجن ضعيف'],               zh:'弱能量回收', py:'ruò néng liàng huí shōu',         cat:'DRV'},
-  /* SCREEN */
-  {id:80, en:'Screen on',            ar:['شغل الشاشة','تشغيل الشاشة'],              zh:'打开屏幕',   py:'dǎ kāi píng mù',                 cat:'SCR'},
-  {id:81, en:'Screen off',           ar:['اقفل الشاشة','اطفي الشاشة'],              zh:'关闭屏幕',   py:'guān bì píng mù',                cat:'SCR'},
-  {id:82, en:'Split screen',         ar:['سبليت','تقسيم الشاشة'],                  zh:'分屏',       py:'fēn píng',                       cat:'SCR'},
-  {id:83, en:'Light theme',          ar:['ثيم فاتح','وضع النهار'],                  zh:'浅色主题',   py:'qiǎn sè zhǔ tí',                 cat:'SCR'},
-  {id:84, en:'Dark theme',           ar:['ثيم داكن','وضع الليل'],                   zh:'深色主题',   py:'shēn sè zhǔ tí',                 cat:'SCR'},
-  /* MEDIA */
-  {id:18, en:'Volume up',            ar:['ارفع الصوت','صوت اعلى'],                  zh:'增大音量',   py:'zēng dà yīn liàng',              cat:'MED'},
-  {id:19, en:'Volume down',          ar:['خفض الصوت','صوت اقل'],                    zh:'降低音量',   py:'jiàng dī yīn liàng',             cat:'MED'},
-  {id:20, en:'Mute',                 ar:['بلاش صوت','صفر الصوت'],                   zh:'静音',       py:'jìng yīn',                       cat:'MED'},
-  {id:21, en:'Next track',           ar:['الأغنية الجاية','اغنية تانية'],            zh:'下一首',    py:'xià yī shǒu',                    cat:'MED'},
-  {id:22, en:'Previous track',       ar:['الأغنية اللي فاتت','الاغنية السابقة'],    zh:'上一首',    py:'shàng yī shǒu',                  cat:'MED'},
-  {id:23, en:'Play music',           ar:['شغل الموسيقى','تشغيل الموسيقى'],          zh:'播放音乐',   py:'bō fàng yīn yuè',                cat:'MED'},
-  {id:24, en:'Pause music',          ar:['وقف الموسيقى','ايقاف الموسيقى'],          zh:'暂停音乐',   py:'zàn tíng yīn yuè',               cat:'MED'},
-  /* APPS */
-  {id:90, en:'Open navigation',      ar:['افتح الملاحة','تشغيل الملاحة'],           zh:'打开导航',   py:'dǎ kāi dǎo háng',                cat:'APP'},
-  {id:91, en:'Open browser',         ar:['افتح المتصفح','تشغيل المتصفح'],           zh:'打开浏览器', py:'dǎ kāi liú lǎn qì',              cat:'APP'},
-  {id:92, en:'Open YouTube',         ar:['افتح يوتيوب','يوتيوب'],                   zh:'打开YouTube',py:'dǎ kāi YouTube',                 cat:'APP'},
-  {id:25, en:'Open Google Maps',     ar:['افتح جوجل ماب','جوجل ماب'],               zh:'打开谷歌地图',py:'dǎ kāi gǔ gē dì tú',            cat:'APP'},
-  {id:55, en:'Open Autokit',         ar:['افتح اوتوكيت','اوتوكيت'],                 zh:'打开Autokit',py:'dǎ kāi Autokit',                cat:'APP'},
-  {id:26, en:'Navigate home',        ar:['روح البيت','طريق البيت'],                 zh:'导航回家',   py:'dǎo háng huí jiā',               cat:'APP'},
-  /* SYSTEM */
-  {id:36, en:'Bluetooth on',         ar:['شغل البلوتوث','فتح البلوتوث'],            zh:'打开蓝牙',   py:'dǎ kāi lán yá',                  cat:'SYS'},
-  {id:37, en:'Bluetooth off',        ar:['اقفل البلوتوث','وقف البلوتوث'],           zh:'关闭蓝牙',   py:'guān bì lán yá',                 cat:'SYS'},
-  {id:35, en:'Home screen',          ar:['الصفحة الرئيسية','ارجع للرئيسية'],        zh:'返回主界面', py:'fǎn huí zhǔ jiè miàn',            cat:'SYS'}
-];
-
-/* ══ EXACT MATCH — full phrases only, no single words ══ */
-var EX = {
-  /* BYD — ALL ways Arabic STT returns "BYD" */
-  'byd':0,'بيد':0,'بي واي دي':0,'باي دي':0,'بي اي دي':0,'بياد':0,'هاي':0,
-
-  /* SUNROOF — فتحة السقف */
-  'افتح فتحة السقف':16,'افتح السقف':16,'فتحة السقف':16,'فتح السقف':16,
-  'اقفل فتحة السقف':17,'اقفل السقف':17,'سكر السقف':17,'قفل السقف':17,
-  'اكفل فتحة السقف':17,'اكفل السقف':17,
-
-  /* ALL WINDOWS */
-  'افتح الشبابيك':12,'افتح شبابيك':12,'افتح النوافذ':12,'شبابيك':12,
-  'اقفل الشبابيك':13,'اقفل شبابيك':13,'سكر الشبابيك':13,'سكر شبابيك':13,
-  'اكفل الشبابيك':13,'اكفل شبابيك':13,
-
-  /* FRONT WINDOW — فاتح/افتح الشباك الامامي */
-  'افتح الشباك الامامي':14,'فاتح الشباك الامامي':14,'افتح شباك امامي':14,
-  'الشباك الامامي':14,'شباك امامي':14,
-  'اقفل الشباك الامامي':53,'سكر الشباك الامامي':53,'اكفل الشباك الامامي':53,
-  'قفل الشباك الامامي':53,
-
-  /* REAR WINDOW */
-  'افتح الشباك الخلفي':15,'فاتح الشباك الخلفي':15,'افتح شباك خلفي':15,
-  'الشباك الخلفي':15,'شباك خلفي':15,
-  'اقفل الشباك الخلفي':54,'سكر الشباك الخلفي':54,'اكفل الشباك الخلفي':54,
-  'قفل الشباك الخلفي':54,
-
-  /* MIRRORS */
-  'ضم المرايات':41,'طي المرايات':41,'اطوي المرايات':41,
-  'افتح المرايات':42,'فرد المرايات':42,
-
-  /* TRUNK */
-  'افتح الشنطة':32,'فتح الشنطة':32,'الشنطة':32,
-  'اقفل الشنطة':52,'سكر الشنطة':52,'اكفل الشنطة':52,
-
-  /* DOORS */
-  'افتح الابواب':34,'فتح الابواب':34,'افتح الأبواب':34,
-  'اقفل الابواب':33,'اقفل الأبواب':33,'سكر الابواب':33,'لوك':33,
-
-  /* AC — تكييف */
-  'شغل التكييف':1,'شغل تكييف':1,'تشغيل التكييف':1,'اشغل التكييف':1,
-  'اقفل التكييف':2,'اقفل تكييف':2,'وقف التكييف':2,'سكر التكييف':2,'اكفل التكييف':2,
-
-  /* LIGHTS */
-  'شغل النور':60,'فتح النور':60,'النور':60,
-  'اقفل النور':61,'اطفي النور':61,'سكر النور':61,
-  'شغل الامبيانت':62,'فتح الامبيانت':62,'امبيانت':62,
-  'اقفل الامبيانت':63,'اطفي الامبيانت':63,
-  'شغل نور النهار':64,
-  'اقفل نور النهار':65,
-
-  /* BT */
-  'شغل البلوتوث':36,'فتح البلوتوث':36,
-  'اقفل البلوتوث':37,'وقف البلوتوث':37,
-
-  /* SCREEN */
-  'شغل الشاشة':80,'فتح الشاشة':80,
-  'اقفل الشاشة':81,'اطفي الشاشة':81,
-  'سبليت':82,'تقسيم الشاشة':82,
-
-  /* DRIVE MODES */
-  'مود عادي':70,'وضع عادي':70,'نورمال':70,
-  'مود ايكو':71,'وضع ايكو':71,'ايكو':71,
-  'مود سبورت':72,'وضع سبورت':72,'سبورت':72,
-  'مود ثلج':73,'وضع ثلج':73,'سنو':73,
-
-  /* TEMP — Egyptian: درجة عشرين etc */
-  'درجة 16':5,'ستاشر':5,'sixteen':5,
-  'درجة 18':6,'تمناشر':6,'eighteen':6,
-  'درجة 20':7,'عشرين درجة':7,'عشرين':7,'twenty':7,
-  'درجة 22':8,'اتنين وعشرين':8,'twenty two':8,
-  'درجة 24':9,'اربعة وعشرين':9,'twenty four':9
+// ─── Arabic Normalization ──────────────────────────────────────────────────
+const normalizeArabic = (text) => {
+return text
+.replace(/[أإآا]/g, “ا”)
+.replace(/[ةه]/g, “ه”)
+.replace(/[يى]/g, “ي”)
+.replace(/[\u064B-\u065F]/g, “”) // Remove tashkeel
+.replace(/[^\u0600-\u06FF\u0020a-zA-Z0-9]/g, “”)
+.toLowerCase()
+.trim();
 };
 
-/* ══ INTENT GUARDS — close words vs open words ══ */
-var CW = ['اقفل','اكفل','سكر','وقف','اطفي'];
-var OW = ['افتح','شغل','تشغيل','فتح'];
-var CIDS = {2:1,13:1,17:1,33:1,37:1,41:1,52:1,53:1,54:1,61:1,63:1,65:1,81:1};
-var OIDS = {1:1,12:1,14:1,15:1,16:1,32:1,34:1,36:1,42:1,60:1,62:1,64:1,80:1};
-function isCl(t){for(var i=0;i<CW.length;i++)if(t.indexOf(CW[i])>=0)return true;return false;}
-function isOp(t){for(var i=0;i<OW.length;i++)if(t.indexOf(OW[i])>=0)return true;return false;}
+// ─── Commands Database ─────────────────────────────────────────────────────
+const COMMANDS = [
+// Wake words
+{ keywords: [“بي واي دي”, “didi”, “byd”], chinese: “嘿，比亚迪”, category: “system”, icon: “🚗”, label: “تنبيه النظام” },
 
-var CATS = ['ALL','WAKE','WIN','AC','CAR','LGT','DRV','SCR','MED','APP','SYS'];
-var And = window.Android||null;
-var lang='ar', cat='ALL', lid=null;
-var on=false, speaking=false, curR=null, tstT=null;
-var micStream=null;
-var MK='byd12';
+// Windows
+{ keywords: [“افتح الشباك الامامي الايسر”, “الشباك الأمامي الأيسر”], chinese: “打开左前车窗”, category: “body”, icon: “🪟”, label: “شباك أمامي أيسر - فتح” },
+{ keywords: [“افتح الشباك الامامي الايمن”, “الشباك الأمامي الأيمن”], chinese: “打开右前车窗”, category: “body”, icon: “🪟”, label: “شباك أمامي أيمن - فتح” },
+{ keywords: [“افتح الشباك الخلفي الايسر”, “الشباك الخلفي الأيسر”], chinese: “打开左后车窗”, category: “body”, icon: “🪟”, label: “شباك خلفي أيسر - فتح” },
+{ keywords: [“افتح الشباك الخلفي الايمن”, “الشباك الخلفي الأيمن”], chinese: “打开右后车窗”, category: “body”, icon: “🪟”, label: “شباك خلفي أيمن - فتح” },
+{ keywords: [“افتح كل الشبابيك”, “افتح جميع الشبابيك”, “افتح كل النوافذ”], chinese: “打开所有车窗”, category: “body”, icon: “🪟”, label: “كل الشبابيك - فتح” },
+{ keywords: [“اغلق كل الشبابيك”, “اغلق جميع الشبابيك”, “اغلق كل النوافذ”], chinese: “关闭所有车窗”, category: “body”, icon: “🪟”, label: “كل الشبابيك - إغلاق” },
+{ keywords: [“افتح الشباك”], chinese: “打开车窗”, category: “body”, icon: “🪟”, label: “شباك - فتح” },
+{ keywords: [“اغلق الشباك”], chinese: “关闭车窗”, category: “body”, icon: “🪟”, label: “شباك - إغلاق” },
 
-/* ══ INIT ══ */
-function init(){
-  bldCats(); render();
-  // Release mic on hide/close
-  document.addEventListener('visibilitychange', function(){
-    if(document.hidden) shutdown();
-  });
-  window.addEventListener('pagehide', shutdown);
-  window.addEventListener('beforeunload', shutdown);
-  // Resume on return
-  document.addEventListener('visibilitychange', function(){
-    if(!document.hidden && !on && localStorage.getItem(MK)==='1'){
-      setTimeout(function(){startMic(true);}, 300);
-    }
-  });
-  startMic(false);
+// Sunroof
+{ keywords: [“افتح السقف”, “افتح الروف”, “افتح الصن روف”], chinese: “打开天窗”, category: “body”, icon: “☀️”, label: “سقف زجاجي - فتح” },
+{ keywords: [“اغلق السقف”, “اغلق الروف”, “اغلق الصن روف”], chinese: “关闭天窗”, category: “body”, icon: “☀️”, label: “سقف زجاجي - إغلاق” },
+{ keywords: [“فتح السقف جزئي”, “السقف نص”], chinese: “天窗半开”, category: “body”, icon: “☀️”, label: “سقف زجاجي - جزئي” },
+
+// Trunk
+{ keywords: [“افتح الشنطة”, “افتح الصندوق”, “افتح الكابوت الخلفي”], chinese: “打开后备箱”, category: “body”, icon: “🧳”, label: “صندوق خلفي - فتح” },
+{ keywords: [“اغلق الشنطة”, “اغلق الصندوق”], chinese: “关闭后备箱”, category: “body”, icon: “🧳”, label: “صندوق خلفي - إغلاق” },
+{ keywords: [“افتح الكابوت الامامي”, “افتح غطاء المحرك”], chinese: “打开前舱盖”, category: “body”, icon: “🔩”, label: “غطاء أمامي - فتح” },
+
+// Mirrors
+{ keywords: [“طوي المرايا”, “طوي المراية”, “اطوي المرايا”], chinese: “折叠后视镜”, category: “body”, icon: “🪞”, label: “مرايا - طي” },
+{ keywords: [“افرد المرايا”, “افتح المرايا”], chinese: “展开后视镜”, category: “body”, icon: “🪞”, label: “مرايا - فرد” },
+
+// Doors
+{ keywords: [“افتح الباب الامامي الايسر”], chinese: “打开左前车门”, category: “body”, icon: “🚪”, label: “باب أمامي أيسر - فتح” },
+{ keywords: [“افتح الباب الامامي الايمن”], chinese: “打开右前车门”, category: “body”, icon: “🚪”, label: “باب أمامي أيمن - فتح” },
+{ keywords: [“اقفل السيارة”, “اقفل كل الابواب”], chinese: “锁定车辆”, category: “body”, icon: “🔒”, label: “قفل السيارة” },
+{ keywords: [“افتح السيارة”, “افتح كل الابواب”], chinese: “解锁车辆”, category: “body”, icon: “🔓”, label: “فتح السيارة” },
+
+// HVAC - AC
+{ keywords: [“شغل التكييف”, “شغل المكيف”, “فعل التكييف”], chinese: “开启空调”, category: “hvac”, icon: “❄️”, label: “تكييف - تشغيل” },
+{ keywords: [“وقف التكييف”, “وقف المكيف”, “اطفي التكييف”], chinese: “关闭空调”, category: “hvac”, icon: “❄️”, label: “تكييف - إيقاف” },
+{ keywords: [“اقصى برودة”, “اعلى برودة”, “برودة قصوى”], chinese: “最大制冷”, category: “hvac”, icon: “🥶”, label: “برودة قصوى” },
+{ keywords: [“درجة حرارة 16”, “16 درجة”], chinese: “温度调到16度”, category: “hvac”, icon: “🌡️”, label: “درجة حرارة 16°” },
+{ keywords: [“درجة حرارة 18”, “18 درجة”], chinese: “温度调到18度”, category: “hvac”, icon: “🌡️”, label: “درجة حرارة 18°” },
+{ keywords: [“درجة حرارة 20”, “20 درجة”], chinese: “温度调到20度”, category: “hvac”, icon: “🌡️”, label: “درجة حرارة 20°” },
+{ keywords: [“درجة حرارة 22”, “22 درجة”], chinese: “温度调到22度”, category: “hvac”, icon: “🌡️”, label: “درجة حرارة 22°” },
+{ keywords: [“درجة حرارة 24”, “24 درجة”], chinese: “温度调到24度”, category: “hvac”, icon: “🌡️”, label: “درجة حرارة 24°” },
+{ keywords: [“زيد المروحة”, “زود سرعة المروحة”], chinese: “增加风速”, category: “hvac”, icon: “💨”, label: “مروحة - زيادة” },
+{ keywords: [“قلل المروحة”, “قلل سرعة المروحة”], chinese: “降低风速”, category: “hvac”, icon: “💨”, label: “مروحة - تقليل” },
+{ keywords: [“مروحة اقصى سرعة”, “اعلى سرعة مروحة”], chinese: “风速最大”, category: “hvac”, icon: “🌪️”, label: “مروحة - أقصى سرعة” },
+{ keywords: [“تدفئة”, “شغل التدفئة”], chinese: “开启暖风”, category: “hvac”, icon: “🔥”, label: “تدفئة - تشغيل” },
+{ keywords: [“تدفئة المقعد الامامي”, “تدفئة الكرسي الامامي”], chinese: “前排座椅加热”, category: “hvac”, icon: “🔥”, label: “تدفئة مقعد أمامي” },
+
+// Drive Modes
+{ keywords: [“وضع الاقتصاد”, “وضع eco”, “eco mode”, “ايكو”], chinese: “切换到经济模式”, category: “drive”, icon: “🌿”, label: “وضع Eco” },
+{ keywords: [“وضع الرياضة”, “وضع sport”, “sport mode”, “سبورت”], chinese: “切换到运动模式”, category: “drive”, icon: “🏎️”, label: “وضع Sport” },
+{ keywords: [“وضع عادي”, “وضع normal”, “normal mode”], chinese: “切换到标准模式”, category: “drive”, icon: “⚖️”, label: “وضع Normal” },
+{ keywords: [“وضع الثلج”, “وضع snow”, “snow mode”], chinese: “切换到雪地模式”, category: “drive”, icon: “❄️”, label: “وضع Snow” },
+{ keywords: [“استرداد الطاقة عالي”, “brake energy high”], chinese: “能量回收高”, category: “drive”, icon: “⚡”, label: “استرداد طاقة - عالي” },
+{ keywords: [“استرداد الطاقة منخفض”, “brake energy low”], chinese: “能量回收低”, category: “drive”, icon: “⚡”, label: “استرداد طاقة - منخفض” },
+
+// Media & Apps
+{ keywords: [“افتح يوتيوب”, “شغل يوتيوب”, “يوتيوب”], chinese: “打开YouTube”, category: “media”, icon: “▶️”, label: “يوتيوب” },
+{ keywords: [“افتح خرائط جوجل”, “جوجل ماب”, “خرائط”], chinese: “打开谷歌地图”, category: “media”, icon: “🗺️”, label: “خرائط جوجل” },
+{ keywords: [“شغل البلوتوث”, “فعل البلوتوث”], chinese: “打开蓝牙”, category: “media”, icon: “🔵”, label: “بلوتوث - تشغيل” },
+{ keywords: [“وقف البلوتوث”, “اطفي البلوتوث”], chinese: “关闭蓝牙”, category: “media”, icon: “🔵”, label: “بلوتوث - إيقاف” },
+{ keywords: [“افتح المتصفح”, “افتح البراوزر”, “مستعرض الانترنت”], chinese: “打开浏览器”, category: “media”, icon: “🌐”, label: “متصفح” },
+{ keywords: [“زيد الصوت”, “رفع الصوت”], chinese: “增大音量”, category: “media”, icon: “🔊”, label: “صوت - زيادة” },
+{ keywords: [“قلل الصوت”, “خفض الصوت”], chinese: “降低音量”, category: “media”, icon: “🔉”, label: “صوت - تقليل” },
+{ keywords: [“كتم الصوت”, “صامت”], chinese: “静音”, category: “media”, icon: “🔇”, label: “كتم الصوت” },
+
+// Lights
+{ keywords: [“شغل الاضاءة المحيطة”, “الاضاءة المحيطة”, “ambient”], chinese: “开启氛围灯”, category: “lights”, icon: “💡”, label: “إضاءة محيطة - تشغيل” },
+{ keywords: [“وقف الاضاءة المحيطة”, “اطفي الاضاءة المحيطة”], chinese: “关闭氛围灯”, category: “lights”, icon: “💡”, label: “إضاءة محيطة - إيقاف” },
+{ keywords: [“شغل انوار النهار”, “drl”, “انوار نهارية”], chinese: “开启日行灯”, category: “lights”, icon: “🌅”, label: “أنوار نهارية DRL” },
+{ keywords: [“شغل الانوار الخارجية”, “شغل النور”], chinese: “开启车灯”, category: “lights”, icon: “💡”, label: “أنوار خارجية” },
+{ keywords: [“اطفي الانوار”, “وقف النور”], chinese: “关闭车灯”, category: “lights”, icon: “💡”, label: “أنوار - إيقاف” },
+];
+
+const CATEGORY_LABELS = {
+system: “النظام”,
+body: “الجسم والخارج”,
+hvac: “التكييف”,
+drive: “وضعيات القيادة”,
+media: “الوسائط”,
+lights: “الإضاءة”,
+};
+
+const CATEGORY_COLORS = {
+system: “#06b6d4”,
+body: “#8b5cf6”,
+hvac: “#3b82f6”,
+drive: “#f59e0b”,
+media: “#ec4899”,
+lights: “#10b981”,
+};
+
+// ─── Longest Keyword Match ─────────────────────────────────────────────────
+const findCommand = (text) => {
+const normalized = normalizeArabic(text);
+let bestMatch = null;
+let bestLength = 0;
+
+for (const cmd of COMMANDS) {
+for (const kw of cmd.keywords) {
+const normalizedKw = normalizeArabic(kw);
+if (normalized.includes(normalizedKw) && normalizedKw.length > bestLength) {
+bestMatch = cmd;
+bestLength = normalizedKw.length;
 }
+}
+}
+return bestMatch;
+};
 
-function shutdown(){
-  on=false; speaking=false;
-  if(curR){try{curR.abort();}catch(e){} curR=null;}
-  if(window.speechSynthesis) window.speechSynthesis.cancel();
-  if(micStream){
-    try{micStream.getTracks().forEach(function(t){t.stop();});}catch(e){}
-    micStream=null;
+// ─── Speak Chinese ─────────────────────────────────────────────────────────
+const speakChinese = (text) => {
+const utterance = new SpeechSynthesisUtterance(text);
+utterance.lang = “zh-CN”;
+utterance.rate = 0.9;
+utterance.pitch = 1;
+window.speechSynthesis.cancel();
+window.speechSynthesis.speak(utterance);
+};
+
+// ─── Visualizer Bars ───────────────────────────────────────────────────────
+const VisualizerBars = ({ active }) => {
+const bars = Array.from({ length: 24 });
+return (
+<div className="flex items-center justify-center gap-[3px] h-16">
+{bars.map((_, i) => (
+<motion.div
+key={i}
+className=“w-1 rounded-full”
+style={{ background: active ? `hsl(${200 + i * 5}, 90%, 65%)` : “#334155” }}
+animate={
+active
+? { scaleY: [0.3, 1 + Math.random() * 1.5, 0.3], opacity: [0.7, 1, 0.7] }
+: { scaleY: 0.2, opacity: 0.3 }
+}
+transition={
+active
+? { duration: 0.4 + Math.random() * 0.4, repeat: Infinity, delay: i * 0.04 }
+: { duration: 0.3 }
+}
+style={{ height: “100%”, background: active ? `hsl(${195 + i * 6}, 85%, 60%)` : “#1e293b” }}
+/>
+))}
+</div>
+);
+};
+
+// ─── Main App ──────────────────────────────────────────────────────────────
+export default function BYDVoiceAssistant() {
+const [listening, setListening] = useState(false);
+const [transcript, setTranscript] = useState(””);
+const [lastResult, setLastResult] = useState(null);
+const [history, setHistory] = useState([]);
+const [showCommands, setShowCommands] = useState(false);
+const [status, setStatus] = useState(“idle”); // idle | listening | success | error
+const [chineseText, setChineseText] = useState(””);
+const recognitionRef = useRef(null);
+const historyRef = useRef(null);
+
+const processVoice = useCallback((text) => {
+setTranscript(text);
+const cmd = findCommand(text);
+if (cmd) {
+setLastResult({ …cmd, input: text, time: new Date() });
+setChineseText(cmd.chinese);
+setStatus(“success”);
+speakChinese(cmd.chinese);
+setHistory((h) => [{ …cmd, input: text, time: new Date() }, …h].slice(0, 30));
+} else {
+setLastResult(null);
+setChineseText(””);
+setStatus(“error”);
+}
+setTimeout(() => setStatus(“idle”), 3000);
+}, []);
+
+const startListening = useCallback(() => {
+if (!(“webkitSpeechRecognition” in window) && !(“SpeechRecognition” in window)) {
+alert(“متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.”);
+return;
+}
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const rec = new SpeechRecognition();
+rec.lang = “ar-SA”;
+rec.continuous = false;
+rec.interimResults = true;
+
+```
+rec.onstart = () => { setListening(true); setStatus("listening"); setTranscript(""); };
+rec.onresult = (e) => {
+  const interim = Array.from(e.results).map((r) => r[0].transcript).join("");
+  setTranscript(interim);
+  if (e.results[e.results.length - 1].isFinal) {
+    processVoice(interim);
   }
-  setS('off','متوقف');
-  document.getElementById('sbtn').textContent='START';
-  document.getElementById('bst').textContent='OFF';
+};
+rec.onerror = () => { setListening(false); setStatus("error"); setTimeout(() => setStatus("idle"), 2000); };
+rec.onend = () => setListening(false);
+
+recognitionRef.current = rec;
+rec.start();
+```
+
+}, [processVoice]);
+
+const stopListening = useCallback(() => {
+recognitionRef.current?.stop();
+setListening(false);
+}, []);
+
+useEffect(() => {
+if (historyRef.current) historyRef.current.scrollTop = 0;
+}, [history]);
+
+const grouped = COMMANDS.reduce((acc, cmd) => {
+if (!acc[cmd.category]) acc[cmd.category] = [];
+acc[cmd.category].push(cmd);
+return acc;
+}, {});
+
+return (
+<div
+dir=“rtl”
+style={{
+minHeight: “100vh”,
+background: “linear-gradient(135deg, #020817 0%, #0a1628 40%, #060d1f 100%)”,
+fontFamily: “‘Cairo’, ‘Noto Sans Arabic’, sans-serif”,
+color: “#e2e8f0”,
+position: “relative”,
+overflow: “hidden”,
+}}
+>
+{/* Google Fonts */}
+<style>{`@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Orbitron:wght@400;700;900&display=swap'); * { box-sizing: border-box; margin: 0; padding: 0; } body { background: #020817; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #0f172a; } ::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }`}</style>
+
+```
+  {/* Background grid */}
+  <div style={{
+    position: "fixed", inset: 0, zIndex: 0,
+    backgroundImage: "linear-gradient(rgba(6,182,212,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.04) 1px, transparent 1px)",
+    backgroundSize: "40px 40px",
+    pointerEvents: "none",
+  }} />
+
+  {/* Glow orbs */}
+  <div style={{ position: "fixed", top: "-20%", right: "-10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+  <div style={{ position: "fixed", bottom: "-20%", left: "-10%", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+
+  <div style={{ position: "relative", zIndex: 1, maxWidth: "480px", margin: "0 auto", padding: "0 16px 100px" }}>
+
+    {/* Header */}
+    <div style={{ textAlign: "center", padding: "32px 0 20px" }}>
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "6px" }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#06b6d4", boxShadow: "0 0 10px #06b6d4" }} />
+          <span style={{ fontFamily: "Orbitron", fontSize: "11px", letterSpacing: "4px", color: "#06b6d4", textTransform: "uppercase" }}>BYD Song Plus 2025</span>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#06b6d4", boxShadow: "0 0 10px #06b6d4" }} />
+        </div>
+        <h1 style={{ fontFamily: "Cairo", fontWeight: 900, fontSize: "26px", color: "#f8fafc", lineHeight: 1.2 }}>
+          المساعد الصوتي
+        </h1>
+        <p style={{ fontSize: "12px", color: "#64748b", marginTop: "4px" }}>تحدث بالعربية · يُترجم للصينية</p>
+      </motion.div>
+    </div>
+
+    {/* Main Mic Card */}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
+      style={{
+        background: "rgba(15,23,42,0.8)",
+        backdropFilter: "blur(20px)",
+        border: `1px solid ${status === "success" ? "rgba(16,185,129,0.4)" : status === "error" ? "rgba(239,68,68,0.4)" : status === "listening" ? "rgba(6,182,212,0.5)" : "rgba(51,65,85,0.5)"}`,
+        borderRadius: "24px",
+        padding: "28px 24px",
+        marginBottom: "16px",
+        transition: "border-color 0.3s",
+        boxShadow: status === "listening" ? "0 0 40px rgba(6,182,212,0.15)" : "none",
+      }}
+    >
+      {/* Visualizer */}
+      <VisualizerBars active={listening} />
+
+      {/* Mic Button */}
+      <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          whileHover={{ scale: 1.05 }}
+          onClick={listening ? stopListening : startListening}
+          style={{
+            width: "88px", height: "88px", borderRadius: "50%",
+            border: "none", cursor: "pointer",
+            background: listening
+              ? "radial-gradient(circle, #0891b2, #0e7490)"
+              : "radial-gradient(circle, #1e40af, #1d4ed8)",
+            boxShadow: listening
+              ? "0 0 0 8px rgba(6,182,212,0.2), 0 0 0 16px rgba(6,182,212,0.08), 0 8px 32px rgba(6,182,212,0.4)"
+              : "0 8px 32px rgba(29,78,216,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.3s",
+          }}
+        >
+          <motion.span
+            animate={listening ? { scale: [1, 1.15, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 1 }}
+            style={{ fontSize: "32px" }}
+          >
+            {listening ? "🎙️" : "🎤"}
+          </motion.span>
+        </motion.button>
+      </div>
+
+      {/* Status */}
+      <div style={{ textAlign: "center" }}>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={status}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -5 }}
+            style={{
+              fontSize: "13px", fontWeight: 600,
+              color: status === "success" ? "#10b981" : status === "error" ? "#ef4444" : status === "listening" ? "#06b6d4" : "#64748b",
+            }}
+          >
+            {status === "listening" ? "🔴 جاري الاستماع..." : status === "success" ? "✅ تم التعرف على الأمر" : status === "error" ? "❌ لم يُعرَّف الأمر" : "اضغط للتحدث"}
+          </motion.p>
+        </AnimatePresence>
+
+        {transcript && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            style={{ marginTop: "10px", padding: "10px 14px", background: "rgba(51,65,85,0.4)", borderRadius: "10px", fontSize: "14px", color: "#94a3b8", lineHeight: 1.5 }}
+          >
+            "{transcript}"
+          </motion.div>
+        )}
+      </div>
+    </motion.div>
+
+    {/* Result Card */}
+    <AnimatePresence>
+      {lastResult && status !== "error" && (
+        <motion.div
+          key={lastResult.chinese}
+          initial={{ opacity: 0, y: 10, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.97 }}
+          style={{
+            background: "rgba(16,185,129,0.08)",
+            border: "1px solid rgba(16,185,129,0.3)",
+            borderRadius: "20px",
+            padding: "20px",
+            marginBottom: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+            <span style={{ fontSize: "28px" }}>{lastResult.icon}</span>
+            <div>
+              <div style={{ fontSize: "13px", color: "#10b981", fontWeight: 700 }}>{lastResult.label}</div>
+              <div style={{ fontSize: "11px", color: "#64748b" }}>
+                <span style={{ background: CATEGORY_COLORS[lastResult.category] + "30", color: CATEGORY_COLORS[lastResult.category], padding: "1px 8px", borderRadius: "6px", fontSize: "10px" }}>
+                  {CATEGORY_LABELS[lastResult.category]}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style={{
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: "12px",
+            padding: "14px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontFamily: "Orbitron", fontSize: "10px", color: "#475569", letterSpacing: "2px", marginBottom: "6px" }}>CHINESE OUTPUT</div>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#f8fafc", letterSpacing: "3px", lineHeight: 1.3 }}>{lastResult.chinese}</div>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => speakChinese(lastResult.chinese)}
+            style={{
+              width: "100%", marginTop: "10px", padding: "10px",
+              background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)",
+              borderRadius: "10px", color: "#10b981", fontSize: "13px", fontWeight: 600,
+              cursor: "pointer", fontFamily: "Cairo",
+            }}
+          >
+            🔊 إعادة النطق بالصينية
+          </motion.button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* History */}
+    {history.length > 0 && (
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        style={{ background: "rgba(15,23,42,0.7)", backdropFilter: "blur(10px)", border: "1px solid rgba(51,65,85,0.5)", borderRadius: "20px", padding: "16px", marginBottom: "16px" }}
+      >
+        <div style={{ fontSize: "12px", color: "#475569", fontFamily: "Orbitron", letterSpacing: "2px", marginBottom: "12px" }}>ACTIVITY LOG</div>
+        <div ref={historyRef} style={{ maxHeight: "180px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "6px" }}>
+          {history.map((item, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.03 }}
+              style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "8px 10px", borderRadius: "10px",
+                background: i === 0 ? "rgba(6,182,212,0.08)" : "rgba(30,41,59,0.4)",
+                border: i === 0 ? "1px solid rgba(6,182,212,0.2)" : "1px solid transparent",
+                cursor: "pointer",
+              }}
+              onClick={() => speakChinese(item.chinese)}
+            >
+              <span style={{ fontSize: "16px" }}>{item.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
+                <div style={{ fontSize: "11px", color: "#475569" }}>{item.chinese}</div>
+              </div>
+              <div style={{ fontSize: "10px", color: "#334155", whiteSpace: "nowrap" }}>
+                {item.time.toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    )}
+
+    {/* Commands List Toggle */}
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      onClick={() => setShowCommands(!showCommands)}
+      style={{
+        width: "100%", padding: "14px",
+        background: "rgba(15,23,42,0.7)", backdropFilter: "blur(10px)",
+        border: "1px solid rgba(51,65,85,0.5)", borderRadius: "16px",
+        color: "#94a3b8", fontSize: "14px", fontWeight: 600,
+        cursor: "pointer", fontFamily: "Cairo",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+      }}
+    >
+      <span>{showCommands ? "▲" : "▼"}</span>
+      {showCommands ? "إخفاء قائمة الأوامر" : `عرض كل الأوامر (${COMMANDS.length} أمر)`}
+    </motion.button>
+
+    <AnimatePresence>
+      {showCommands && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          style={{ overflow: "hidden", marginTop: "12px" }}
+        >
+          {Object.entries(grouped).map(([cat, cmds]) => (
+            <div key={cat} style={{ marginBottom: "12px" }}>
+              <div style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "6px 10px", marginBottom: "6px",
+              }}>
+                <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: CATEGORY_COLORS[cat], boxShadow: `0 0 8px ${CATEGORY_COLORS[cat]}` }} />
+                <span style={{ fontSize: "12px", fontWeight: 700, color: CATEGORY_COLORS[cat] }}>{CATEGORY_LABELS[cat]}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                {cmds.map((cmd, i) => (
+                  <motion.div
+                    key={i}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { speakChinese(cmd.chinese); setLastResult({ ...cmd, input: cmd.keywords[0], time: new Date() }); setStatus("success"); setTranscript(cmd.keywords[0]); setHistory(h => [{ ...cmd, input: cmd.keywords[0], time: new Date() }, ...h].slice(0, 30)); }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      padding: "10px 12px", borderRadius: "10px",
+                      background: "rgba(15,23,42,0.6)",
+                      border: "1px solid rgba(51,65,85,0.3)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span style={{ fontSize: "18px" }}>{cmd.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "13px", color: "#cbd5e1", fontWeight: 600 }}>{cmd.label}</div>
+                      <div style={{ fontSize: "11px", color: "#475569" }}>{cmd.keywords[0]}</div>
+                    </div>
+                    <div style={{ fontSize: "12px", color: "#334155", fontFamily: "monospace" }}>{cmd.chinese}</div>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    {/* Wake word hint */}
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
+      style={{ textAlign: "center", marginTop: "20px", padding: "10px", background: "rgba(6,182,212,0.05)", border: "1px solid rgba(6,182,212,0.15)", borderRadius: "12px" }}
+    >
+      <p style={{ fontSize: "11px", color: "#475569" }}>
+        كلمة التنبيه: <span style={{ color: "#06b6d4", fontWeight: 700 }}>"بي واي دي"</span> أو <span style={{ color: "#06b6d4", fontWeight: 700 }}>"Didi"</span>
+      </p>
+      <p style={{ fontSize: "10px", color: "#334155", marginTop: "3px" }}>انقر على أي أمر في القائمة لتشغيله مباشرةً</p>
+    </motion.div>
+  </div>
+</div>
+```
+
+);
 }
-
-/* ══ MIC ══ */
-function startMic(silent){
-  navigator.mediaDevices.getUserMedia({
-    audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
-  }).then(function(s){
-    micStream=s;
-    document.getElementById('mPill').textContent='MIC✓';
-    document.getElementById('mPill').className='pi ok';
-    localStorage.setItem(MK,'1');
-    on=true;
-    document.getElementById('sbtn').textContent='STOP';
-    document.getElementById('bst').textContent='ON';
-    setS('armed','يستمع · Listening...');
-    listen();
-  }).catch(function(){
-    document.getElementById('mPill').textContent='TAP🎤';
-    document.getElementById('mPill').className='pi wa';
-    if(!silent) setS('off','اضغط START لبدء الاستماع');
-  });
-}
-
-/* ══ TOGGLE ══ */
-function toggle(){
-  if(on){ shutdown(); }
-  else  { startMic(false); }
-}
-
-/* ══ LISTEN LOOP ══ */
-var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-
-function listen(){
-  if(!on||speaking||curR||!SR) return;
-  var r=new SR();
-  curR=r;
-  r.lang='ar-EG';
-  r.continuous=false;
-  r.interimResults=true;
-  r.maxAlternatives=3;
-  setS('armed','يستمع · Listening...');
-
-  r.onresult=function(e){
-    var heard='';
-    for(var i=0;i<e.results.length;i++) heard+=e.results[i][0].transcript;
-    if(heard) document.getElementById('rtext').textContent=heard;
-    // Only match on a result of sufficient length
-    if(heard.trim().length<3) return;
-    var m=doMatch(heard);
-    if(m){
-      try{r.abort();}catch(x){}
-      curR=null;
-      runCmd(m);
-    }
-  };
-
-  r.onerror=function(ev){
-    curR=null;
-    if(!on||speaking) return;
-    var gap = (ev.error==='no-speech'||ev.error==='aborted') ? 40 : 300;
-    setTimeout(listen, gap);
-  };
-
-  r.onend=function(){
-    curR=null;
-    if(on&&!speaking) setTimeout(listen,40);
-  };
-
-  try{r.start();}
-  catch(e){curR=null; if(on) setTimeout(listen,400);}
-}
-
-/* ══ MATCH — two-pass: exact then fuzzy ══ */
-function doMatch(txt){
-  var tl=txt.trim().toLowerCase();
-  if(tl.length<2) return null;
-  var ci=isCl(tl), oi=isOp(tl);
-  // BYD detection — catches all Arabic STT transcriptions
-  var bydV=['byd','بيد','بي واي دي','باي دي','بي اي دي','بياد','هاي'];
-  for(var bv=0;bv<bydV.length;bv++){if(tl.indexOf(bydV[bv])>=0){for(var bx=0;bx<DB.length;bx++)if(DB[bx].id===0)return DB[bx];}}
-
-  /* Pass 1: exact table (longest key wins) */
-  var ks=Object.keys(EX).sort(function(a,b){return b.length-a.length;});
-  for(var k=0;k<ks.length;k++){
-    if(tl.indexOf(ks[k])>=0){
-      var tid=EX[ks[k]];
-      if(ci && OIDS[tid]) continue;  // close intent → skip open cmd
-      if(oi && !ci && CIDS[tid]) continue; // open intent → skip close cmd
-      for(var x=0;x<DB.length;x++) if(DB[x].id===tid) return DB[x];
-    }
-  }
-
-  /* Pass 2: fuzzy — only if text is long enough to be specific */
-  if(tl.length<5) return null; // short text must match exactly
-
-  var best=null, bs=0;
-  for(var i=0;i<DB.length;i++){
-    var cmd=DB[i];
-    if(ci && OIDS[cmd.id]) continue;
-    if(oi && !ci && CIDS[cmd.id]) continue;
-    var phs=[cmd.en.toLowerCase()];
-    if(cmd.ar) for(var a=0;a<cmd.ar.length;a++) phs.push(cmd.ar[a].toLowerCase());
-    for(var p=0;p<phs.length;p++){
-      var ph=phs[p];
-      if(tl===ph){best=cmd;bs=1;break;}
-      if(tl.indexOf(ph)>=0||ph.indexOf(tl)>=0){if(0.90>bs){bs=0.90;best=cmd;}continue;}
-      // Word overlap — require 2+ words to match
-      var pw=ph.split(/\s+/), tw=tl.split(/\s+/), h=0;
-      for(var wi=0;wi<pw.length;wi++)
-        for(var ti=0;ti<tw.length;ti++)
-          if(pw[wi].length>2&&tw[ti].length>2&&(pw[wi]===tw[ti]||pw[wi].indexOf(tw[ti])>=0||tw[ti].indexOf(pw[wi])>=0)) h++;
-      if(h>=2){ // Need at LEAST 2 word matches
-        var sc=(h/Math.max(pw.length,1))*(ph.length/(ph.length+4));
-        if(sc>bs){bs=sc;best=cmd;}
-      }
-    }
-    if(bs===1) break;
-  }
-  return bs>0.35?best:null; // High threshold = fewer false matches
-}
-
-/* ══ RUN COMMAND ══ */
-function runCmd(cmd){
-  lid=cmd.id;
-  var lb=(lang!=='en'&&cmd.ar&&cmd.ar.length)?cmd.ar[0]:cmd.en;
-  document.getElementById('rlbl').textContent='EXECUTING ✓';
-  document.getElementById('rtext').textContent=lb;
-  document.getElementById('rzh').textContent=cmd.zh;
-  document.getElementById('rpy').textContent=cmd.py;
-  toast(cmd.zh+' · '+lb);
-  render();
-  setS('say','🔊 '+cmd.zh);
-  tts(cmd.zh, function(){
-    speaking=false;
-    document.getElementById('rlbl').textContent='DONE ✓ · تم';
-    if(on){ setS('armed','يستمع · Listening...'); setTimeout(listen,200); }
-  });
-}
-
-/* ══ TTS — callback when truly done ══ */
-function tts(txt, cb){
-  speaking=true;
-  if(curR){try{curR.abort();}catch(e){} curR=null;}
-
-  // Android native bridge
-  if(And&&And.speak){
-    try{And.speak(txt,'zh-CN',1.0,0.88);setTP('APK');setTimeout(cb,1800);return;}catch(e){}
-  }
-
-  // Web Speech API
-  if(window.speechSynthesis){
-    window.speechSynthesis.cancel();
-    var done=false;
-    var finish=function(){if(done)return;done=true;cb();};
-    var go=function(){
-      var vs=window.speechSynthesis.getVoices(),zh=null;
-      for(var i=0;i<vs.length;i++){if(vs[i].lang&&vs[i].lang.indexOf('zh')===0){zh=vs[i];break;}}
-      var u=new SpeechSynthesisUtterance(txt);
-      u.lang='zh-CN'; u.rate=0.85; u.volume=1.0;
-      if(zh) u.voice=zh;
-      u.onend=function(){setTP('SYN');finish();};
-      u.onerror=function(ev){
-        if(ev.error==='interrupted'){finish();return;}
-        tryGoogle(txt,finish);
-      };
-      window.speechSynthesis.speak(u);
-      setTimeout(function(){if(!done) finish();}, 5000); // safety
-    };
-    if(window.speechSynthesis.getVoices().length>0) go();
-    else{window.speechSynthesis.onvoiceschanged=go; setTimeout(go,300);}
-    return;
-  }
-  tryGoogle(txt,cb);
-}
-
-function tryGoogle(txt,cb){
-  if(!navigator.onLine){setTP('—');cb();return;}
-  try{
-    var a=new Audio(), done=false;
-    var finish=function(){if(done)return;done=true;cb();};
-    a.oncanplay=function(){a.play();setTP('GTT');};
-    a.onended=finish;
-    a.onerror=function(){setTP('—');finish();};
-    a.src='https://translate.google.com/translate_tts?ie=UTF-8&q='+encodeURIComponent(txt)+'&tl=zh-CN&client=tw-ob';
-    a.load();
-    setTimeout(function(){if(!done)finish();},6000);
-  }catch(e){setTP('—');cb();}
-}
-
-function setTP(m){var p=document.getElementById('tPill');p.textContent='TTS:'+m;p.className=(m==='APK'||m==='SYN'||m==='GTT')?'pi ok':'pi mu';}
-
-/* ══ UI ══ */
-function setS(state,txt){
-  var d=document.getElementById('sdot'), s=document.getElementById('stxt');
-  d.className='sdot '+state; s.className='stxt '+state; s.textContent=txt;
-  document.getElementById('bst').textContent=on?'ON':'OFF';
-}
-function toast(msg){clearTimeout(tstT);var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');tstT=setTimeout(function(){t.classList.remove('on');},3000);}
-function lg(l){lang=l;var ids=['lA','lE','lB'],vs=['ar','en','both'];for(var i=0;i<ids.length;i++)document.getElementById(ids[i]).className='lb'+(l===vs[i]?' on':'');render();}
-function bldCats(){
-  var el=document.getElementById('cats');el.innerHTML='';
-  for(var i=0;i<CATS.length;i++){
-    var c=CATS[i],b=document.createElement('button');
-    b.className='cb'+(c===cat?' on':'');b.textContent=c;
-    (function(cc){b.onclick=function(){cat=cc;bldCats();render();};})(c);
-    el.appendChild(b);
-  }
-}
-function render(){
-  var q=(document.getElementById('srch').value||'').toLowerCase();
-  var ls=[];
-  for(var i=0;i<DB.length;i++){
-    var c=DB[i],mc=cat==='ALL'||c.cat===cat;
-    var mq=!q||c.en.toLowerCase().indexOf(q)>=0||c.zh.indexOf(q)>=0||(c.ar&&c.ar.join(' ').indexOf(q)>=0);
-    if(mc&&mq)ls.push(c);
-  }
-  document.getElementById('cnt').textContent=ls.length;
-  var el=document.getElementById('list');el.innerHTML='';
-  for(var j=0;j<ls.length;j++){
-    var cmd=ls[j],d=document.createElement('div');
-    d.className='cmd'+(cmd.wk?' wkc':'')+(lid===cmd.id?' done':'');
-    var ar=(lang!=='en'&&cmd.ar&&cmd.ar.length)?'<div class="ar">'+cmd.ar[0]+'</div>':'';
-    var en=(lang!=='ar')?'<div class="en">'+cmd.en+'</div>':'';
-    d.innerHTML='<div class="ci">'+ar+en+'<div class="ccat">'+cmd.cat+'</div></div><div class="czh">'+cmd.zh+'</div>';
-    (function(c){d.onclick=function(){runCmd(c);};})(cmd);
-    el.appendChild(d);
-  }
-}
-init();
-return{toggle:toggle, lg:lg, render:render};
-})();
-</script>
-
-</body>
-</html>
